@@ -1,3 +1,4 @@
+# LaTeX stuff
 __*.tex
 *.fdb_latexmk
 *.synctex.gz
@@ -6,3 +7,6 @@ __*.tex
 *.aux
 *.pdf
 *.xdv
+
+# Jupyter
+**/*/.ipynb_checkpoints
