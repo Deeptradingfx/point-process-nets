@@ -8,6 +8,8 @@ __*.tex
 *.pdf
 *.xdv
 
+!biblio/*.pdf
+
 $.DS_Store
 
 # Jupyter
