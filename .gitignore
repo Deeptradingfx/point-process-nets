@@ -8,5 +8,7 @@ __*.tex
 *.pdf
 *.xdv
 
+$.DS_Store
+
 # Jupyter
 **/*/.ipynb_checkpoints
