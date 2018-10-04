@@ -12,3 +12,6 @@ order book modelling (arXiv :1412.7096) E.Bacry, T.Jaisson, J.-F.Muzy Quantitati
 https://arxiv.org/abs/1412.7096
 3. Hawkes processes in finance. (arXiv :1502.04592) E.Bacry, I.Mastromatteo, J.-F.Muzy Market Microstructure and Liquidity Vol. 01, No. 01, 1550005 (2015).  
 https://arxiv.org/abs/1502.04592
+4. The Neural Hawkes Process: A Neurally
+Self-Modulating Multivariate Point Process, H. Mei, J. Eisner
+https://arxiv.org/pdf/1612.09328.pdf
