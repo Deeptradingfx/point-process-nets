@@ -15,3 +15,4 @@ https://arxiv.org/abs/1502.04592
 4. The Neural Hawkes Process: A Neurally
 Self-Modulating Multivariate Point Process, H. Mei, J. Eisner
 https://arxiv.org/pdf/1612.09328.pdf
+5. À propos du RNN apprenant le paramètre beta: Neural Hawkes Process Memory (Mike Mozer) http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf
