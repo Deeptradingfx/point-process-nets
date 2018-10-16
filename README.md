@@ -2,6 +2,8 @@
 
 Dépôt pour le projet _Simulation et Modélisation de trading haute fréquence à l’aide de processus de Hawkes_, sous la direction d'[Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
 
+**Objectif** Utiliser un modèle de type Hawkes neuronal pour de la prédiction du prochain événement.
+
 ## Références 
 
 1. Second order statistics characterization of Hawkes processes and non-parametric estimation (arXiv :1401.0903) E. Bacry, J.F. Muzy. Trans. in Inf. Theory, 62, Iss.

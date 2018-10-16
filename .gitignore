@@ -19,3 +19,11 @@ $.DS_Store
 
 # Jupyter
 .ipynb_checkpoints
+
+# Data
+# Ignore the subfolders
+data/dax-euro/**/*
+data/german_equity/**/*
+# Keep the READMEs
+!data/dax-euro/README
+!data/german_equity/README

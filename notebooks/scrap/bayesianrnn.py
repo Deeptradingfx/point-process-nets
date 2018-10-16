@@ -54,6 +54,7 @@ class RNN(nn.Module):
         # Update the posterior probabilities
         likel = self.likelihood(dt, self.event_x)
         self.beta_posts = likel*self.beta_posts
+        self.beta_posts = self.beta_posts/self.beta_posts.sum()
         # print("Intensities: %s" % self.intens)
         # print("Output shape: %s" % str(output.shape))
         return output, hidden
@@ -62,8 +63,8 @@ class RNN(nn.Module):
         """
         Compute the likelihoods of the next event happening within dt.
         """
-        exponent = (self.intens - self.mu) *\
-            (1 - (-self.betas*dt).exp())/self.betas + self.mu*dt
+        exponent = self.mu*dt + (self.intens - self.mu) *\
+            (1 - (-self.betas*dt).exp())/self.betas
         fact = self.mu + (-self.betas*dt).exp()*(self.intens - self.mu)
         # return resulting likelihood
         return (1 - (-exponent).exp())*fact.pow(x)
