@@ -1,8 +1,19 @@
 # Projet 3A
 
-Dépôt pour le projet _Simulation et Modélisation de trading haute fréquence à l’aide de processus de Hawkes_, sous la direction d'[Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
+Projet de simulation et modélisation avec des processus ponctuels, sous la direction d'[Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
 
-**Objectif** Utiliser un modèle de type Hawkes neuronal pour de la prédiction du prochain événement.
+## Objectif
+
+Utiliser un modèle de type Hawkes neuronal pour de la prédiction du prochain événement.
+
+## Fichiers
+
+**Répertoires**:
+* `biblio` contient la bibliographie
+* `rapport` contient le rapport du projet.
+* `notebooks` contient des Jupyter notebooks
+
+Clonez les fichiers avec `git clone git@gitlab.binets.fr:wilson.jallet/map511-p3a`
 
 ## Références 
 
@@ -17,4 +28,5 @@ https://arxiv.org/abs/1502.04592
 4. The Neural Hawkes Process: A Neurally
 Self-Modulating Multivariate Point Process, H. Mei, J. Eisner
 https://arxiv.org/pdf/1612.09328.pdf
-5. À propos du RNN apprenant le paramètre beta: Neural Hawkes Process Memory (Mike Mozer) http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf
+5. Modeling The Intensity Function Of Point Process Via Recurrent Neural Networks https://arxiv.org/pdf/1705.08982.pdf
+6. À propos du RNN apprenant le paramètre beta: Neural Hawkes Process Memory (Mike Mozer) http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf
