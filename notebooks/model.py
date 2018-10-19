@@ -110,7 +110,8 @@ class NeuralCTLSTM(nn.Module):
         self.hidden = h_ti, c_ti, cbar
         return output, h_ti, c_ti, cbar, decay_t
 
-    def eval_intensity(self, dt, output, c_ti, cbar, decay):
+    def eval_intensity(self, dt: torch.Tensor, output: torch.Tensor,
+                       c_ti, cbar, decay):
         """
         Compute the intensity function
         t:      time to compute
@@ -146,11 +147,9 @@ class NeuralCTLSTM(nn.Module):
         pdb.set_trace()
         inter_times = event_times[-1:] - event_times[1:]
         # Get the intensity process
-        event_intensities = [
-            self.eval_intensity(inter_times[i], output[i],
-                                c_ti[i], cbar[i], decay[i])
-            for i in range(inter_times.size(0))]
-        event_intensities = torch.stack(event_intensities)
+        event_intensities = self.eval_intensity(
+            inter_times, output,
+            c_ti, cbar, decay)
         first_sum = event_intensities.log().sum(dim=0)
 
         # The integral term is computed using a Monte Carlo method
