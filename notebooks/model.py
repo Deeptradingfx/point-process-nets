@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import pdb
 
 device = torch.device('cpu')
 
@@ -142,18 +143,15 @@ class NeuralCTLSTM(nn.Module):
         output: entire output history
         decay:  entire decay history
         """
+        pdb.set_trace()
         inter_times = event_times[-1:] - event_times[1:]
-        print("inter_times shape: %s" % str(inter_times.shape))
         # Get the intensity process
         event_intensities = [
             self.eval_intensity(inter_times[i], output[i],
                                 c_ti[i], cbar[i], decay[i])
-            for i in range(inter_times.size(0))
-        ]
+            for i in range(inter_times.size(0))]
         event_intensities = torch.stack(event_intensities)
-        print("event intensities shape %s" % str(event_intensities.shape))
         first_sum = event_intensities.log().sum(dim=0)
-        print("first_sum shape %s" % str(first_sum.shape))
 
         # The integral term is computed using a Monte Carlo method
         batch_size = output.size(1)
@@ -161,13 +159,9 @@ class NeuralCTLSTM(nn.Module):
         samples, _ = (T * torch.rand(event_times.size(0), batch_size)).sort(0)
         # get the corresponding intervals each sample belongs to
         mask_idx = torch.cumsum((samples >= event_times), dim=0)
-        print("mask dim %s" % str(mask_idx.shape))
         mask_idx = mask_idx[:-1]
-        print(mask_idx)
-
         dsamples = samples[:-1] - samples[1:]
         ioutput = output[mask_idx]
-        print("  ioutput.shape %s" % str(ioutput.shape))
         ic_ti = c_ti[mask_idx]
         icbar = cbar[mask_idx]
         idecay = decay[mask_idx]
@@ -176,9 +170,7 @@ class NeuralCTLSTM(nn.Module):
                                 ic_ti[i], icbar[i], idecay[i])
             for i in range(output.size(0))
         ])
-        print("lam samples shape %s" % str(lam_samples.shape))
         integral = torch.mean(lam_samples, dim=0)
-        print("integral shape %s" % str(integral.shape))
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = first_sum - integral
