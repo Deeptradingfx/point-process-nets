@@ -1,3 +1,6 @@
+"""
+Models for the Neural Hawkes process.
+"""
 import torch
 from torch import nn
 import pdb
@@ -9,6 +12,7 @@ class NeuralCTLSTM(nn.Module):
     """
     A continuous-time LSTM, defined according to Eisner & Mei's article
     https://arxiv.org/abs/1612.09328
+    Batch size of all tensors must be the first dimension.
     """
 
     def __init__(self, hidden_dim: int):
@@ -42,6 +46,7 @@ class NeuralCTLSTM(nn.Module):
         """
         Initialize the hidden state, and the two hidden memory
         cells c and cbar.
+        The first dimension is the batch size.
         """
         self.hidden = (torch.rand(batch_size, self.hidden_dim, device=device),
                        torch.rand(batch_size, self.hidden_dim, device=device),
@@ -56,9 +61,9 @@ class NeuralCTLSTM(nn.Module):
         # print(c.shape, type(c))
         # print(cbar.shape, type(cbar))
         # print(decay.shape, type(decay))
-        dt = dt.unsqueeze(-1)
         # print(dt, type(dt))
-        return cbar + (c - cbar) * torch.exp(-decay * dt)
+        dt_expd = dt.unsqueeze(1).expand(c.shape)
+        return cbar + (c - cbar) * torch.exp(-decay * dt_expd)
 
     def next_event(self, output, dt, decay):
         # h_ti, c_ti, cbar = self.hidden
@@ -88,8 +93,8 @@ class NeuralCTLSTM(nn.Module):
         forget = torch.sigmoid(self.forget_g(v))
         output = torch.sigmoid(self.output_g(v))
 
-        input_bar = torch.sigmoid(self.ibar(v))
-        forget_bar = torch.sigmoid(self.fbar(v))
+        input_target = torch.sigmoid(self.ibar(v))
+        forget_target = torch.sigmoid(self.fbar(v))
 
         # Not-quite-c
         zi = torch.tanh(self.z_gate(v))
@@ -103,7 +108,7 @@ class NeuralCTLSTM(nn.Module):
         # Update the cell
         c_ti = forget * c_t_after + input * zi
         # Update the cell state asymptotic value
-        cbar = forget_bar * cbar + input_bar * zi
+        cbar = forget_target * cbar + input_target * zi
         h_ti = output * torch.tanh(c_t_after)
 
         # Store our new states for the next pass to use
@@ -114,11 +119,12 @@ class NeuralCTLSTM(nn.Module):
                        c_ti, cbar, decay):
         """
         Compute the intensity function
-        t:      time to compute
-        output: NN output o_i
-        c_ti:   previous cell state
-        cbar:   previous cell target
-        decay:
+        Args:
+            t:      time to compute
+            output: NN output o_i
+            c_ti:   previous cell state
+            cbar:   previous cell target
+            decay:
 
         It is best to store the training history in variables for this.
         """
@@ -126,7 +132,7 @@ class NeuralCTLSTM(nn.Module):
         c_t_after = self.c_func(dt, c_ti, cbar, decay)
         h_t = output * torch.tanh(c_t_after)
         try:
-            pre_lambda = torch.mm(self.weight_f[None, :], h_t.t())
+            pre_lambda = torch.mm(self.weight_f[None, :], h_t)
         except BaseException:
             print("Error occured in c_func")
             print(" dt shape %s" % str(dt.shape))
@@ -144,8 +150,9 @@ class NeuralCTLSTM(nn.Module):
         output: entire output history
         decay:  entire decay history
         """
+        print("Computing loss for LSTM...")
         pdb.set_trace()
-        inter_times = event_times[-1:] - event_times[1:]
+        inter_times = event_times[:, -1:] - event_times[:, 1:]
         # Get the intensity process
         event_intensities = self.eval_intensity(
             inter_times, output,
@@ -153,9 +160,12 @@ class NeuralCTLSTM(nn.Module):
         first_sum = event_intensities.log().sum(dim=0)
 
         # The integral term is computed using a Monte Carlo method
-        batch_size = output.size(1)
+        batch_size = event_times.size(0)
+        input_length = event_times.size(1)
         # random samples in [0, T]
-        samples, _ = (T * torch.rand(event_times.size(0), batch_size)).sort(0)
+        # dim (batch_size) * (input_length)
+        samples: torch.Tensor = T * torch.rand(batch_size, input_length)
+        samples.sort_(0)
         # get the corresponding intervals each sample belongs to
         mask_idx = torch.cumsum((samples >= event_times), dim=0)
         mask_idx = mask_idx[:-1]
@@ -173,6 +183,5 @@ class NeuralCTLSTM(nn.Module):
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = first_sum - integral
-        # return the opposite of the mean of that
-        # loss
+        # return the opposite of the mean
         return -res.mean()
