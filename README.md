@@ -2,18 +2,27 @@
 
 Projet de simulation et modélisation avec des processus ponctuels, sous la direction d'[Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
 
-## Objectif
+## Objective
 
-Utiliser un modèle de type Hawkes neuronal pour de la prédiction du prochain événement.
+Use a modified neural network-based Hawkes process model for next event prediction in a time series.
 
-## Fichiers
+## Overview
 
-**Répertoires**:
-* `biblio` contient la bibliographie
-* `rapport` contient le rapport du projet.
-* `notebooks` contient des Jupyter notebooks
+**Directories**:
+* `biblio` contains the bibliography
+* `rapport` contains the project report
+* `notebooks` contains the Jupyter notebooks
 
-Clonez les fichiers avec `git clone git@gitlab.binets.fr:wilson.jallet/map511-p3a`
+## Installation
+
+
+Clone the repo:
+
+```bash
+git clone git@gitlab.binets.fr:wilson.jallet/map511-p3a
+```
+
+
 
 ## Références 
 
@@ -26,7 +35,8 @@ https://arxiv.org/abs/1412.7096
 3. Hawkes processes in finance. (arXiv :1502.04592) E.Bacry, I.Mastromatteo, J.-F.Muzy Market Microstructure and Liquidity Vol. 01, No. 01, 1550005 (2015).  
 https://arxiv.org/abs/1502.04592
 4. The Neural Hawkes Process: A Neurally
-Self-Modulating Multivariate Point Process, H. Mei, J. Eisner
+Self-Modulating Multivariate Point Process, H. Mei, J. Eisner  
 https://arxiv.org/pdf/1612.09328.pdf
 5. Modeling The Intensity Function Of Point Process Via Recurrent Neural Networks https://arxiv.org/pdf/1705.08982.pdf
-6. À propos du RNN apprenant le paramètre beta: Neural Hawkes Process Memory (Mike Mozer) http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf
+6. On a Bayesian RNN for learning the decrease speed parameter in a process: Neural Hawkes Process Memory (Mike Mozer)   
+http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf

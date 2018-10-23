@@ -62,7 +62,7 @@ class NeuralCTLSTM(nn.Module):
         # print(cbar.shape, type(cbar))
         # print(decay.shape, type(decay))
         # print(dt, type(dt))
-        dt_expd = dt.unsqueeze(1).expand(c.shape)
+        dt_expd = dt.unsqueeze(-1).expand(c.shape)
         return cbar + (c - cbar) * torch.exp(-decay * dt_expd)
 
     def next_event(self, output, dt, decay):
@@ -120,19 +120,27 @@ class NeuralCTLSTM(nn.Module):
         """
         Compute the intensity function
         Args:
-            t:      time to compute
+            dt:     time increments array
+                    dt[i] is the time elapsed since event t_i
+                    verify that if you want to compute at time t,
+                    t_i <= t <= t_{i+1}, then dt[i] = t - t_i
             output: NN output o_i
             c_ti:   previous cell state
             cbar:   previous cell target
-            decay:
+            decay:  decay[i] is the degrowth param. on range [t_i, t_{i+1}]
 
         It is best to store the training history in variables for this.
         """
         # Get the updated c(t)
         c_t_after = self.c_func(dt, c_ti, cbar, decay)
         h_t = output * torch.tanh(c_t_after)
+        batch_size = h_t.size(0)
         try:
-            pre_lambda = torch.mm(self.weight_f[None, :], h_t)
+            hidden_size = self.weight_f.size(0)
+            weight_f = (
+                self.weight_f.expand(batch_size, hidden_size).unsqueeze(1)
+            )
+            pre_lambda = torch.bmm(weight_f, h_t.transpose(2, 1)).squeeze(1)
         except BaseException:
             print("Error occured in c_func")
             print(" dt shape %s" % str(dt.shape))
@@ -142,7 +150,8 @@ class NeuralCTLSTM(nn.Module):
             raise
         return self.activation(pre_lambda)
 
-    def likelihood(self, event_times, c_ti, cbar, output, decay, T):
+    def likelihood(self, event_times, cell_hist, cell_target_hist,
+                   output_hist, decay_hist, T):
         """
         Compute the negative log-likelihood as a loss function
         #lengths: real sequence lengths
@@ -150,36 +159,25 @@ class NeuralCTLSTM(nn.Module):
         output: entire output history
         decay:  entire decay history
         """
-        print("Computing loss for LSTM...")
-        pdb.set_trace()
         inter_times = event_times[:, -1:] - event_times[:, 1:]
         # Get the intensity process
         event_intensities = self.eval_intensity(
-            inter_times, output,
-            c_ti, cbar, decay)
-        first_sum = event_intensities.log().sum(dim=0)
-
+            inter_times, output_hist,
+            cell_hist, cell_target_hist, decay_hist)
+        first_sum = event_intensities.log().sum(dim=1)
         # The integral term is computed using a Monte Carlo method
         batch_size = event_times.size(0)
         input_length = event_times.size(1)
         # random samples in [0, T]
         # dim (batch_size) * (input_length)
-        samples: torch.Tensor = T * torch.rand(batch_size, input_length)
-        samples.sort_(0)
-        # get the corresponding intervals each sample belongs to
-        mask_idx = torch.cumsum((samples >= event_times), dim=0)
-        mask_idx = mask_idx[:-1]
-        dsamples = samples[:-1] - samples[1:]
-        ioutput = output[mask_idx]
-        ic_ti = c_ti[mask_idx]
-        icbar = cbar[mask_idx]
-        idecay = decay[mask_idx]
-        lam_samples = torch.stack([
-            self.eval_intensity(dsamples[i], ioutput[i],
-                                ic_ti[i], icbar[i], idecay[i])
-            for i in range(output.size(0))
-        ])
-        integral = torch.mean(lam_samples, dim=0)
+        # each sample belongs to
+        samples: torch.Tensor = inter_times * torch.rand_like(inter_times)
+
+        # Get 
+        lam_samples = self.eval_intensity(
+            samples, output_hist,
+            cell_hist, cell_target_hist, decay_hist)
+        integral = lam_samples.sum(dim=1)
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = first_sum - integral

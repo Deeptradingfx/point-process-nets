@@ -1,5 +1,6 @@
 numpy>=1.14
 numba>=0.40
 matplotlib>=2.1
-pytorch
+pytorch>=0.4.1
+tqdm>=4.26.0
 git+git://github.com/ManifoldFR/point-process-rust
