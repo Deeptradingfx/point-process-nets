@@ -1,10 +1,11 @@
 image: registry.binets.fr/br/docker-ubuntu-polytechique-latex:latest
 
 build:rapport:
+  when: manual
   script:
     - cd rapport/
     - xelatex main.tex
   artifacts:
     paths:
-    - main.pdf
+    - rapport/main.pdf
     expire_in: 1 week
