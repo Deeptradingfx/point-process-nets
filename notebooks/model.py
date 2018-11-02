@@ -79,13 +79,9 @@ class NeuralCTLSTM(nn.Module):
 
         # Not-quite-c
         zi = torch.tanh(self.z_gate(v))
-
         # Compute the decay parameter
         decay_t = self.decay_act(self.decay(v))
 
-        # Now update the cell memory
-        # Decay the cell memory
-        # c_t_actual = self.c_func(inter_times, c_ti, c_target_i, decay_t)
         # Update the cell
         c_ti = forget * c_ti + input * zi
         # Update the cell state target
@@ -96,8 +92,7 @@ class NeuralCTLSTM(nn.Module):
         )
         # h_t_actual = output * torch.tanh(c_t_actual)
         h_ti = output * torch.tanh(c_ti)
-
-        # Store our new states for the next pass to use
+        # Return our new states for the next pass to use
         return output, h_ti, c_ti, c_t_actual, c_target_i, decay_t
 
     def eval_intensity(self, dt: torch.Tensor, output: torch.Tensor,
@@ -105,14 +100,14 @@ class NeuralCTLSTM(nn.Module):
         """
         Compute the intensity function
         Args:
-            dt  time increments array
+            dt: time increments array
                 dt[i] is the time elapsed since event t_i
                 verify that if you want to compute at time t,
                 t_i <= t <= t_{i+1}, then dt[i] = t - t_i
             output: NN output o_i
             c_ti: previous cell state
             c_target_i: previous cell target
-            decay   decay[i] is the degrowth param. on range [t_i, t_{i+1}]
+            decay: decay[i] is the degrowth param. on range [t_i, t_{i+1}]
 
         It is best to store the training history in variables for this.
         """
@@ -121,7 +116,7 @@ class NeuralCTLSTM(nn.Module):
             c_target_i + (c_ti - c_target_i) *
             torch.exp(-decay * dt.unsqueeze(-1).expand(c_ti.shape))
         )
-
+        # Compute hidden state
         h_t = output * torch.tanh(c_t_after)
         batch_size = h_t.size(0)
         hidden_size = self.weight_a.size(0)
@@ -132,37 +127,36 @@ class NeuralCTLSTM(nn.Module):
         return self.activation(pre_lambda)
 
     def likelihood(self, event_times, cell_hist, cell_target_hist,
-                   output_hist, decay_hist, T):
+                   output_hist, decay_hist, T) -> torch.Tensor:
         """
-        Compute the negative log-likelihood as a loss function
-        #lengths: real sequence lengths
-        c_ti: entire cell state history
-        output: entire output history
-        decay: entire decay history
+        Compute the negative log-likelihood as a loss function.
+        
+        Args:
+            #lengths: real sequence lengths
+            event_times: event occurrence timestamps
+            c_ti: entire cell state history
+            output: entire output history
+            decay: entire decay history
         """
         inter_times: torch.Tensor = event_times[:, -1:] - event_times[:, 1:]
         # Get the intensity process
-        event_intensities = self.eval_intensity(
+        event_lambdas = self.eval_intensity(
             inter_times, output_hist,
             cell_hist, cell_target_hist, decay_hist)
-        first_sum = event_intensities.log().sum(dim=1)
+        log_sum = event_lambdas.log().sum(dim=1)
         # The integral term is computed using a Monte Carlo method
-        M = 10  # Monte Carlo samples on each dimension
-        samples: torch.Tensor = (
-            inter_times.expand(M, *inter_times.shape) *
-            torch.rand(M, *inter_times.shape)
-        )
+        samples: torch.Tensor = inter_times *torch.rand(*inter_times.shape)
 
         # Get the samples of the intensity function
-        lam_samples = torch.stack([self.eval_intensity(
-            samples[i], output_hist, cell_hist,
-            cell_target_hist, decay_hist) for i in range(M)]).mean(dim=0)
+        lam_samples = self.eval_intensity(
+            samples, output_hist, cell_hist,
+            cell_target_hist, decay_hist)
         integral = torch.sum(inter_times*lam_samples, dim=1)
         # Tensor of dim. batch_size
         # of the values of the likelihood
-        res = first_sum - integral
+        res = -log_sum + integral
         # return the opposite of the mean
-        return - res.mean()
+        return res.mean()
 
     def pred_loss(self, output, cell_hist, cell_target_hist):
         #
