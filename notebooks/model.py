@@ -1,5 +1,5 @@
 """
-Point process models.
+Neural network models for point processes.
 
 @author: manifold
 """
@@ -19,24 +19,18 @@ class NeuralCTLSTM(nn.Module):
 
     def __init__(self, hidden_dim: int):
         super(NeuralCTLSTM, self).__init__()
-
         self.hidden_dim = hidden_dim
-
         self.input_g = nn.Linear(hidden_dim, hidden_dim)
         self.forget_g = nn.Linear(hidden_dim, hidden_dim)
         self.output_g = nn.Linear(hidden_dim, hidden_dim)
-
         self.ibar = nn.Linear(hidden_dim, hidden_dim)
         self.fbar = nn.Linear(hidden_dim, hidden_dim)
-
         # activation will be tanh
         self.z_gate = nn.Linear(hidden_dim, hidden_dim)
-
         # Cell decay factor
         self.decay = nn.Linear(hidden_dim, hidden_dim)
         # we can learn the parameters of this
         self.decay_act = nn.Softplus()
-
         self.activation = nn.Softplus()
         self.weight_a = torch.rand(self.hidden_dim, device=device)
 
@@ -61,16 +55,16 @@ class NeuralCTLSTM(nn.Module):
         inter_times: inter-arrival time for the next event in the sequence
 
         Args:
-            inter_times:    interarrival times
-            h_ti:           prev. hidden state
-            c_ti:           prev. cell state
-            c_target_i:     prev. cell state target
+            inter_times: interarrival times
+            h_ti: prev. hidden state
+            c_ti: prev. cell state
+            c_target_i: prev. cell state target
 
         Returns:
-            output : result of the output gate
-            h_ti   : hidden state
-            c_ti   : cell state
-            cbar   : cell target
+            output: result of the output gate
+            h_ti: hidden state
+            c_ti: cell state
+            cbar: cell target
             decay_t: decay parameter on the interval
         #TODO event type embedding
         """
@@ -115,9 +109,9 @@ class NeuralCTLSTM(nn.Module):
                 dt[i] is the time elapsed since event t_i
                 verify that if you want to compute at time t,
                 t_i <= t <= t_{i+1}, then dt[i] = t - t_i
-            output  NN output o_i
-            c_ti    previous cell state
-            c_target_i  previous cell target
+            output: NN output o_i
+            c_ti: previous cell state
+            c_target_i: previous cell target
             decay   decay[i] is the degrowth param. on range [t_i, t_{i+1}]
 
         It is best to store the training history in variables for this.
@@ -130,19 +124,11 @@ class NeuralCTLSTM(nn.Module):
 
         h_t = output * torch.tanh(c_t_after)
         batch_size = h_t.size(0)
-        try:
-            hidden_size = self.weight_a.size(0)
-            weight_a = (
-                self.weight_a.expand(batch_size, hidden_size).unsqueeze(1)
-            )
-            pre_lambda = torch.bmm(weight_a, h_t.transpose(2, 1)).squeeze(1)
-        except BaseException:
-            print("Error occured in c_func")
-            print(" dt shape %s" % str(dt.shape))
-            print(" Weights shape %s" % str(self.weight_a.shape))
-            print(" h_t shape %s" % str(h_t.shape))
-
-            raise
+        hidden_size = self.weight_a.size(0)
+        weight_a = (
+            self.weight_a.expand(batch_size, hidden_size).unsqueeze(1)
+        )
+        pre_lambda = torch.bmm(weight_a, h_t.transpose(2, 1)).squeeze(1)
         return self.activation(pre_lambda)
 
     def likelihood(self, event_times, cell_hist, cell_target_hist,
@@ -150,9 +136,9 @@ class NeuralCTLSTM(nn.Module):
         """
         Compute the negative log-likelihood as a loss function
         #lengths: real sequence lengths
-        c_ti :  entire cell state history
+        c_ti: entire cell state history
         output: entire output history
-        decay:  entire decay history
+        decay: entire decay history
         """
         inter_times: torch.Tensor = event_times[:, -1:] - event_times[:, 1:]
         # Get the intensity process

@@ -15,16 +15,7 @@ Use a modified neural network-based Hawkes process model for next event predicti
 
 ## Installation
 
-
-Clone the repo:
-
-```bash
-git clone git@gitlab.binets.fr:wilson.jallet/map511-p3a
-```
-
-
-
-## Références 
+## References
 
 1. Second order statistics characterization of Hawkes processes and non-parametric estimation (arXiv :1401.0903) E. Bacry, J.F. Muzy. Trans. in Inf. Theory, 62, Iss.
 4 (2016)  
