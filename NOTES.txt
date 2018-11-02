@@ -1,0 +1,10 @@
+NOTES ON NEURAWKES
+
+In the neurawkes repository the CTLSTM model is
+in modules/models, named NeuralHawkesCTLSM
+controlled in controllers.py by class
+ControlNeuralHawkesAdaptiveBaseCTSM_time
+
+CTLSTM loss function is called in controllers.py on
+line 399
+
