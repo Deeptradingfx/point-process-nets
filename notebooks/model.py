@@ -52,10 +52,10 @@ class NeuralCTLSTM(nn.Module):
 
     def forward(self, inter_times, h_ti, c_ti, c_target_i):
         """
-        inter_times: inter-arrival time for the next event in the sequence
+        Forward pass for the CT-LSTM.
 
         Args:
-            inter_times: interarrival times
+            inter_times: event inter-arrival times
             h_ti: prev. hidden state
             c_ti: prev. cell state
             c_target_i: prev. cell state target
@@ -78,17 +78,16 @@ class NeuralCTLSTM(nn.Module):
         forget_target = torch.sigmoid(self.fbar(v))
 
         # Not-quite-c
-        zi = torch.tanh(self.z_gate(v))
+        z_i = torch.tanh(self.z_gate(v))
         # Compute the decay parameter
         decay_t = self.decay_act(self.decay(v))
-
         # Update the cell
-        c_ti = forget * c_ti + input * zi
+        c_ti = forget * c_ti + input * z_i
         # Update the cell state target
-        c_target_i = forget_target * c_target_i + input_target * zi
+        c_target_i = forget_target * c_target_i + input_target * z_i
         c_t_actual = (
             c_target_i + (c_ti - c_target_i) *
-            torch.exp(-decay_t*inter_times.unsqueeze(1))
+            torch.exp(-decay_t*inter_times)
         )
         # h_t_actual = output * torch.tanh(c_t_actual)
         h_ti = output * torch.tanh(c_ti)
@@ -98,7 +97,8 @@ class NeuralCTLSTM(nn.Module):
     def eval_intensity(self, dt: torch.Tensor, output: torch.Tensor,
                        c_ti, c_target_i, decay) -> torch.Tensor:
         """
-        Compute the intensity function
+        Compute the intensity function.
+
         Args:
             dt: time increments array
                 dt[i] is the time elapsed since event t_i
@@ -126,32 +126,47 @@ class NeuralCTLSTM(nn.Module):
         pre_lambda = torch.bmm(weight_a, h_t.transpose(2, 1)).squeeze(1)
         return self.activation(pre_lambda)
 
-    def likelihood(self, event_times, cell_hist, cell_target_hist,
+    def likelihood(self, event_times, seq_lengths, cell_hist, cell_target_hist,
                    output_hist, decay_hist, T) -> torch.Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
         Args:
-            #lengths: real sequence lengths
             event_times: event occurrence timestamps
+            seq_lengths: real sequence lengths
             c_ti: entire cell state history
             output: entire output history
             decay: entire decay history
         """
-        inter_times: torch.Tensor = event_times[:, -1:] - event_times[:, 1:]
+        # pdb.set_trace()
+        max_seq_length = event_times.size(0)
+        inter_times = event_times[1:] - event_times[:-1]
         # Get the intensity process
         event_lambdas = self.eval_intensity(
             inter_times, output_hist,
             cell_hist, cell_target_hist, decay_hist)
-        log_sum = event_lambdas.log().sum(dim=1)
+        log_sum = event_lambdas.log().sum()
         # The integral term is computed using a Monte Carlo method
-        samples: torch.Tensor = inter_times *torch.rand(*inter_times.shape)
-
+        samples: torch.Tensor = (
+            T*torch.rand(*event_times.shape)
+        )
+        samples, _ = samples.sort(0)
+        dsamples = samples[1:] - samples[:-1]
+        # Get the index of each elt of samples inside
+        # the subdivision given by the event_times array
+        indices = (
+            torch.sum(samples[:-1,None] >= event_times, dim=1)
+            - (max_seq_length-seq_lengths)
+        )
         # Get the samples of the intensity function
-        lam_samples = self.eval_intensity(
-            samples, output_hist, cell_hist,
-            cell_target_hist, decay_hist)
-        integral = torch.sum(inter_times*lam_samples, dim=1)
+        try:
+            lam_samples = self.eval_intensity(
+                dsamples, output_hist[:,indices,:],
+                cell_hist[:,indices,:], cell_target_hist[:,indices,:],
+                decay_hist[:,indices,:])
+        except:
+            pdb.set_trace()
+        integral = torch.sum(inter_times*lam_samples)
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = -log_sum + integral
