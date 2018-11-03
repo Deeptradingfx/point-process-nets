@@ -3,8 +3,9 @@ NOTES ON NEURAWKES
 In the neurawkes repository the CTLSTM model is
 in modules/models, named NeuralHawkesCTLSM
 controlled in controllers.py by class
-ControlNeuralHawkesAdaptiveBaseCTSM_time
+ControlNeuralHawkesAdaptiveBaseCTSM_time (line 315)
 
 CTLSTM loss function is called in controllers.py on
 line 399
 
+dim_process = dim_model (used interchangeably)
