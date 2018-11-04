@@ -18,6 +18,18 @@ Use a modified neural network-based Hawkes process model for next event predicti
 
 ## Installation
 
+### Loading a model
+
+From [Saving & Loading models](https://pytorch.org/tutorials/beginner/saving_loading_models.html).  
+If the model state dict was saved with `torch.save(model.state_dict(), PATH)`
+
+
+```python
+model = ModelClass(*args, **kwargs)
+model.load_state_dict(torch.load(PATH))
+model.eval() # Evaluation mode
+```
+
 ## References
 
 1. Second order statistics characterization of Hawkes processes and non-parametric estimation (arXiv :1401.0903) E. Bacry, J.F. Muzy. Trans. in Inf. Theory, 62, Iss.4 (2016) https://arxiv.org/abs/1401.0903

@@ -188,5 +188,4 @@ class NeuralCTLSTM(nn.Module):
         pass
 
     def generate_seq(self, cell_hist, cell_target_hist, decay_hist):
-        
         pass
