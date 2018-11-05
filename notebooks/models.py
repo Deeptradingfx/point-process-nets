@@ -190,11 +190,12 @@ class NeuralCTLSTM(nn.Module):
 class EventGen:
     def __init__(self, model: NeuralCTLSTM):
         self.model = model
-        hidden, c_t, c_target = model.init_hidden()
-        self.hidden_t = hidden
-        self.cell_t = c_t
-        self.cell_target = c_target
-        self.hidden_hist = []
+        with torch.no_grad():
+            hidden, c_t, c_target = model.init_hidden()
+            self.hidden_t = hidden
+            self.cell_t = c_t
+            self.cell_target = c_target
+            self.hidden_hist = []
 
     def generate_sequence(self, tmax: float):
         """
@@ -210,10 +211,12 @@ class EventGen:
         self.sequence_ = [s]
         self.update_hidden_state()
 
-        while s < tmax:
+        while s <= tmax:
             lbdaMax = self.update_max_lambda()
             dt = -1./lbdaMax*np.log(np.random.rand())
             s += dt.item() # Increment s
+            if s > tmax:
+                break
             t = self.sequence_[-1]
             # Compute the current intensity
             # Compute what the hidden state at s is
@@ -235,24 +238,25 @@ class EventGen:
         Update all cell states using forward pass on the model when an event occurs at t.
         """
         t = self.sequence_[-1]
-        output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i = self.model.forward(
-            t - self.sequence_[-1],
-            self.hidden_t,
-            self.cell_t,
-            self.cell_target
-        )
-        self.output = output
-        self.hidden_t = hidden_i # New hidden state at t, start value on [t,\infty)
-        self.cell_t = cell_i # New cell state at t, start value on [t,\infty)
-        self.cell_target = c_target_i # New cell state target
-        self.cell_decay = decay_i # New decay parameter until next event
-        self.hidden_hist.append({
-            "hidden": self.hidden_t,
-            "cell": self.cell_t,
-            "cell_target": self.cell_target,
-            "cell_decay": self.cell_decay,
-            "output": self.output
-        })
+        with torch.no_grad():
+            output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i = self.model.forward(
+                t - self.sequence_[-1],
+                self.hidden_t,
+                self.cell_t,
+                self.cell_target
+            )
+            self.output = output
+            self.hidden_t = hidden_i # New hidden state at t, start value on [t,\infty)
+            self.cell_t = cell_i # New cell state at t, start value on [t,\infty)
+            self.cell_target = c_target_i # New cell state target
+            self.cell_decay = decay_i # New decay parameter until next event
+            self.hidden_hist.append({
+                "hidden": self.hidden_t,
+                "cell": self.cell_t,
+                "cell_target": self.cell_target,
+                "cell_decay": self.cell_decay,
+                "output": self.output
+            })
 
     def update_max_lambda(self):
         """
