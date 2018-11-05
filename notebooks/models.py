@@ -56,7 +56,7 @@ class NeuralCTLSTM(nn.Module):
         Args:
             dt: event inter-arrival times
             hidden_i: prev. hidden state
-            cell_i: prev. cell state
+            cell_i: prev. cell state, decayed since last event
             c_target_i: prev. cell state target
 
         Returns:
@@ -78,10 +78,11 @@ class NeuralCTLSTM(nn.Module):
         z_i = torch.tanh(self.z_gate(v))
         # Compute the decay parameter
         decay_i = self.decay_act(self.decay(v))
-        # Update the cell
+        # Update the cell state
         cell_i = forget * cell_i + input * z_i
         # Update the cell state target
         c_target_i = forget_target * c_target_i + input_target * z_i
+        # Decay the cell state to its value before the next event
         c_t_actual = (
             c_target_i + (cell_i - c_target_i) *
             torch.exp(-decay_i*dt)
@@ -91,7 +92,7 @@ class NeuralCTLSTM(nn.Module):
         # Return our new states for the next pass to use
         return output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i
 
-    def eval_intensity(self, dt: torch.Tensor, output: torch.Tensor,
+    def compute_intensity(self, dt: torch.Tensor, output: torch.Tensor,
                        c_ti, c_target_i, decay) -> torch.Tensor:
         """
         Compute the intensity function.
@@ -144,7 +145,7 @@ class NeuralCTLSTM(nn.Module):
         max_seq_length = event_times.size(0)
         inter_times = event_times[1:] - event_times[:-1]
         # Get the intensity process
-        event_lambdas = self.eval_intensity(
+        event_lambdas = self.compute_intensity(
             inter_times, output_hist,
             cell_hist, cell_target_hist, decay_hist)
         log_sum = event_lambdas.log().sum()
@@ -168,7 +169,7 @@ class NeuralCTLSTM(nn.Module):
             )
             # Get the samples of the intensity function
             try:
-                lam_samples_.append(self.eval_intensity(
+                lam_samples_.append(self.compute_intensity(
                     dsamples, output_hist[:,indices,:],
                     cell_hist[:,indices,:], cell_target_hist[:,indices,:],
                     decay_hist[:,indices,:]))
@@ -187,6 +188,42 @@ class NeuralCTLSTM(nn.Module):
         #
         pass
 
-    def generate_seq(self, cell_hist, cell_target_hist, decay_hist):
-        
+
+class EventGen:
+    def __init__(self, model: NeuralCTLSTM):
+        self.model = model
+
+    def generate_sequence(self, cell_hist: torch.Tensor, cell_target_hist: torch.Tensor, tmax: float):
+        """
+        Generate a sequence of events distributed according to the neural Hawkes model.
+
+        WARNING: Check the model is in evaluation mode!
+        """
+        assert not(self.model.training)
+
+        # Store the sequence inside the object
+        self.sequence_ = [0.0]
+
+        while ti < tmax:
+            # Compute the current intensity
+            # Apply activation function to hidden state
+            intens = self.model.activation(
+                torch.mm(self.model.weight_a, self.hidden_state)
+            )
+
+
+
         pass
+
+    def update_hidden_state(self, s):
+        output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i = self.model.forward(
+            s - self.sequence_[-1],
+            self.hidden_i,
+            self.cell_i,
+            self.cell_target
+        )
+        self.output = output
+        self.cell_t = cell_i # New cell state before decay
+        self.cell_target = c_target_i # New cell state target
+        self.cell_decay = decay_i # New decay parameter until next event
+        self.hidden_state = hidden_i # Hidden state, to compute process intensity
