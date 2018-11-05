@@ -3,6 +3,7 @@ Neural network models for point processes.
 
 @author: manifold
 """
+import numpy as np
 import torch
 from torch import nn
 import pdb
@@ -32,7 +33,7 @@ class NeuralCTLSTM(nn.Module):
         # we can learn the parameters of this
         self.decay_act = nn.Softplus(beta=6.)
         self.activation = nn.Softplus(beta=6.)
-        self.weight_a = torch.rand(self.hidden_dim, device=device)
+        self.w_alpha = nn.Linear(hidden_dim, 1)
 
     def init_hidden(self, batch_size=1):
         """
@@ -82,7 +83,7 @@ class NeuralCTLSTM(nn.Module):
         cell_i = forget * cell_i + input * z_i
         # Update the cell state target
         c_target_i = forget_target * c_target_i + input_target * z_i
-        # Decay the cell state to its value before the next event
+        # Decay the cell state to its value before the known next event at t+dt
         c_t_actual = (
             c_target_i + (cell_i - c_target_i) *
             torch.exp(-decay_i*dt)
@@ -120,11 +121,8 @@ class NeuralCTLSTM(nn.Module):
         # Compute hidden state
         h_t = output * torch.tanh(c_t_after)
         batch_size = h_t.size(0)
-        hidden_size = self.weight_a.size(0)
-        weight_a = (
-            self.weight_a.expand(batch_size, hidden_size).unsqueeze(1)
-        )
-        pre_lambda = torch.bmm(weight_a, h_t.transpose(2, 1)).squeeze(1)
+        hidden_size = self.hidden_dim
+        pre_lambda = self.w_alpha(h_t)
         return self.activation(pre_lambda)
 
     def likelihood(self, event_times, seq_lengths, cell_hist, cell_target_hist,
@@ -192,8 +190,13 @@ class NeuralCTLSTM(nn.Module):
 class EventGen:
     def __init__(self, model: NeuralCTLSTM):
         self.model = model
+        hidden, c_t, c_target = model.init_hidden()
+        self.hidden_t = hidden
+        self.cell_t = c_t
+        self.cell_target = c_target
+        self.hidden_hist = []
 
-    def generate_sequence(self, cell_hist: torch.Tensor, cell_target_hist: torch.Tensor, tmax: float):
+    def generate_sequence(self, tmax: float):
         """
         Generate a sequence of events distributed according to the neural Hawkes model.
 
@@ -201,29 +204,81 @@ class EventGen:
         """
         assert not(self.model.training)
 
+        s = 0.0
+        lbdaMax = 1.0 # PLACEHOLDER
         # Store the sequence inside the object
-        self.sequence_ = [0.0]
+        self.sequence_ = [s]
+        self.update_hidden_state()
 
-        while ti < tmax:
+        while s < tmax:
+            lbdaMax = self.update_max_lambda()
+            dt = -1./lbdaMax*np.log(np.random.rand())
+            s += dt.item() # Increment s
+            t = self.sequence_[-1]
             # Compute the current intensity
+            # Compute what the hidden state at s is
+            # Knowing previous event is t
+            cell_state_s = self.cell_target + (self.cell_t - self.cell_target)*torch.exp(-self.cell_decay*(s-t))
+            hidden_state_s = self.output * torch.tanh(cell_state_s)
             # Apply activation function to hidden state
-            intens = self.model.activation(
-                torch.mm(self.model.weight_a, self.hidden_state)
-            )
+            intens = self.model.activation(self.model.w_alpha(hidden_state_s)).item()
+            u = np.random.rand() # random in [0,1]
+            print("Intens {:}, lbdaMax {:}, s {:}".format(intens, lbdaMax, s))
+            if u <= intens/lbdaMax:
+                self.update_hidden_state()
+                self.sequence_.append(s)
 
+        return self.sequence_
 
-
-        pass
-
-    def update_hidden_state(self, s):
+    def update_hidden_state(self):
+        """
+        Update all cell states using forward pass on the model when an event occurs at t.
+        """
+        t = self.sequence_[-1]
         output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i = self.model.forward(
-            s - self.sequence_[-1],
-            self.hidden_i,
-            self.cell_i,
+            t - self.sequence_[-1],
+            self.hidden_t,
+            self.cell_t,
             self.cell_target
         )
         self.output = output
-        self.cell_t = cell_i # New cell state before decay
+        self.hidden_t = hidden_i # New hidden state at t, start value on [t,\infty)
+        self.cell_t = cell_i # New cell state at t, start value on [t,\infty)
         self.cell_target = c_target_i # New cell state target
         self.cell_decay = decay_i # New decay parameter until next event
-        self.hidden_state = hidden_i # Hidden state, to compute process intensity
+        self.hidden_hist.append({
+            "hidden": self.hidden_t,
+            "cell": self.cell_t,
+            "cell_target": self.cell_target,
+            "cell_decay": self.cell_decay,
+            "output": self.output
+        })
+
+    def update_max_lambda(self):
+        """
+        Considering current time is s and knowing the last event, find a new maximum value of the intensity.
+        
+        Each term in the sum defining pre_lambda (intensity before activation) is of the form
+        .. math::
+            o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
+        """
+        t = self.sequence_[-1]
+        w_al = self.model.w_alpha.weight.data
+        cell_diff = self.cell_t - self.cell_target
+        mult_prefix = w_al*self.output
+        pos_prefactor = mult_prefix > 0
+
+        pos_decr = pos_prefactor & (cell_diff >= 0)
+        p1 = torch.dot(mult_prefix[pos_decr], torch.tanh(self.cell_t[pos_decr]))
+        pos_incr = pos_prefactor & (cell_diff < 0)
+        p2 = torch.dot(mult_prefix[pos_incr], torch.tanh(self.cell_target[pos_incr]))
+        
+        neg_decr = ~pos_prefactor & (cell_diff >= 0)
+        p3 = torch.dot(mult_prefix[neg_decr], torch.tanh(self.cell_target[neg_decr]))
+        neg_incr = ~pos_prefactor & (cell_diff < 0)
+        p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(self.cell_t[neg_incr]))
+
+        lbda_tilde = p1+p2+p3+p4
+        return self.model.activation(lbda_tilde)
+
+
