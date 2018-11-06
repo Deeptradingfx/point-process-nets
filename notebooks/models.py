@@ -15,7 +15,6 @@ class NeuralCTLSTM(nn.Module):
     """
     A continuous-time LSTM, defined according to Eisner & Mei's article
     https://arxiv.org/abs/1612.09328
-    Batch size of all tensors must be the first dimension.
     """
 
     def __init__(self, hidden_dim: int):
