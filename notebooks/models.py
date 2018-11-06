@@ -28,21 +28,22 @@ class NeuralCTLSTM(nn.Module):
         self.fbar = nn.Linear(hidden_dim, hidden_dim)
         # activation will be tanh
         self.z_gate = nn.Linear(hidden_dim, hidden_dim)
-        # Cell decay factor
-        self.decay = nn.Linear(hidden_dim, hidden_dim)
+        # Cell decay factor, identical for all hidden dims
+        self.decay_gate = nn.Linear(hidden_dim, 1)
         # we can learn the parameters of this
-        self.decay_act = nn.Softplus(beta=6.)
-        self.activation = nn.Softplus(beta=6.)
-        self.w_alpha = nn.Linear(hidden_dim, 1)
+        self.decay_act = nn.Softplus(beta=3.)
+        # activation for the intensity
+        self.w_alpha = nn.Linear(hidden_dim, 1, bias=True)
+        self.activation = nn.Softplus(beta=5.)
 
-    def init_hidden(self, batch_size=1):
+    def init_hidden(self):
         """
         Initialize the hidden state, the cell state and cell state target.
         The first dimension is the batch size.
         """
-        return (torch.zeros(batch_size, self.hidden_dim, device=device),
-                torch.zeros(batch_size, self.hidden_dim, device=device),
-                torch.zeros(batch_size, self.hidden_dim, device=device))
+        return (torch.zeros(1, self.hidden_dim, device=device),
+                torch.zeros(1, self.hidden_dim, device=device),
+                torch.zeros(1, self.hidden_dim, device=device))
 
     def next_event(self, output, dt, decay):
         # c_t_after = self.c_func(dt, c_ti, cbar, decay)
@@ -78,7 +79,7 @@ class NeuralCTLSTM(nn.Module):
         # Not-quite-c
         z_i = torch.tanh(self.z_gate(v))
         # Compute the decay parameter
-        decay_i = self.decay_act(self.decay(v))
+        decay_i = self.decay_act(self.decay_gate(v))
         # Update the cell state
         cell_i = forget * cell_i + input * z_i
         # Update the cell state target
@@ -151,7 +152,7 @@ class NeuralCTLSTM(nn.Module):
         n_samples = event_times.shape[0]
         all_samples: torch.Tensor = (
             T*torch.rand(*event_times.shape, n_samples)
-        )
+        ) # uniform samples in [0, T]
         all_samples, _ = all_samples.sort(0)
         lam_samples_ = []
         for i in range(n_samples):
@@ -175,7 +176,7 @@ class NeuralCTLSTM(nn.Module):
                 pdb.set_trace()
                 raise
         lam_samples_ = torch.stack(lam_samples_)
-        integral = torch.sum(inter_times*lam_samples_, dim=1)
+        integral = torch.sum(T*lam_samples_, dim=1)
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = -log_sum + integral
@@ -226,11 +227,10 @@ class EventGen:
             # Apply activation function to hidden state
             intens = self.model.activation(self.model.w_alpha(hidden_state_s)).item()
             u = np.random.rand() # random in [0,1]
-            print("Intens {:}, lbdaMax {:}, s {:}".format(intens, lbdaMax, s))
             if u <= intens/lbdaMax:
                 self.update_hidden_state()
                 self.sequence_.append(s)
-
+        self.sequence_.pop(0)
         return self.sequence_
 
     def update_hidden_state(self):
