@@ -1,5 +1,6 @@
 import torch
-from .models.ctlstm import NeuralCTLSTM
+import numpy as np
+from models.ctlstm import NeuralCTLSTM, EventGen
 
 
 def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer, event_times,
@@ -57,3 +58,38 @@ def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer, event_times,
         decay=decay_hist
     )
     return loss, hist_dict
+
+
+def make_ctlstm_sequence_plot(nhlstm: NeuralCTLSTM, generator: EventGen, tmax: float):
+    """
+    Make an intensity plot for the CTLSTM model
+
+    Args:
+        nhlstm: Neural Hawkes model instance
+        generator: Neural Hawkes generator instance
+        tmax: max time horizon
+    """
+    sequence = generator.sequence_
+    hidden_hist = generator.hidden_hist
+    tls = np.linspace(0, tmax, 100)
+    tls = np.sort(np.append(tls, sequence))
+    interv_counter = 0
+    y_vals = np.zeros_like(tls[:-1])
+    for i in range(len(tls)):
+        t = tls[i]
+        if t > sequence[-1]:
+            tls = tls[:i]
+            y_vals = y_vals[:i]
+            break
+        while t > sequence[interv_counter]:
+            interv_counter += 1
+        c_t = hidden_hist[interv_counter]['cell']
+        c_target = hidden_hist[interv_counter]['cell_target']
+        output = hidden_hist[interv_counter]['output']
+        decay = hidden_hist[interv_counter]['cell_decay']
+        hidden_t = output * torch.tanh(
+            c_target + (c_t - c_target) * torch.exp(-decay * (t - sequence[interv_counter]))
+        )
+        with torch.no_grad():
+            y_vals[i] = nhlstm.activation(nhlstm.w_alpha(hidden_t)).item()
+    return tls, y_vals
