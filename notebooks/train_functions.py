@@ -1,7 +1,8 @@
 import torch
+from .models.ctlstm import NeuralCTLSTM
 
 
-def train_neural_ctlstm(nhlstm, optimizer, event_times,
+def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer, event_times,
                         sequence_length, input_size, tmax):
     """Train the Neural Hawkes CTLSTM on input sequence
 

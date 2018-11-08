@@ -94,7 +94,7 @@ class NeuralCTLSTM(nn.Module):
         return output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i
 
     def compute_intensity(self, dt: torch.Tensor, output: torch.Tensor,
-                       c_ti, c_target_i, decay) -> torch.Tensor:
+                          c_ti, c_target_i, decay) -> torch.Tensor:
         """
         Compute the intensity function.
 
@@ -120,8 +120,6 @@ class NeuralCTLSTM(nn.Module):
         )
         # Compute hidden state
         h_t = output * torch.tanh(c_t_after)
-        batch_size = h_t.size(0)
-        hidden_size = self.hidden_dim
         pre_lambda = self.w_alpha(h_t)
         return self.activation(pre_lambda)
 
@@ -179,7 +177,6 @@ class NeuralCTLSTM(nn.Module):
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = -log_sum + integral
-        # return the opposite of the mean
         return res.mean()
 
     def pred_loss(self, output, cell_hist, cell_target_hist):
@@ -283,5 +280,3 @@ class EventGen:
 
         lbda_tilde = p1+p2+p3+p4
         return self.model.activation(lbda_tilde)
-
-
