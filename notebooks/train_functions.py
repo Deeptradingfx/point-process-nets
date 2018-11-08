@@ -7,9 +7,12 @@ def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer, event_times,
     """Train the Neural Hawkes CTLSTM on input sequence
 
     Args:
+        nhlstm: Hawkes CTLSTM model
+        optimizer: optimizer instance
         event_times: input sequence of event timestamps
         sequence_length: real sequence length :math:`N`
         input_size: maximal input size
+        tmax: max time horizon
     """
     # inter-arrival times
     dt = event_times[1:] - event_times[:-1]
