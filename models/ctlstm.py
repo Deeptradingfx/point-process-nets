@@ -193,6 +193,7 @@ class EventGen:
             self.cell_t = c_t
             self.cell_target = c_target
             self.hidden_hist = []
+        self.sequence_ = []
 
     def generate_sequence(self, tmax: float):
         """
@@ -203,9 +204,8 @@ class EventGen:
         assert not(self.model.training)
 
         s = 0.0
-        lbdaMax = 1.0 # PLACEHOLDER
         # Store the sequence inside the object
-        self.sequence_ = [s]
+        self.sequence_.append(s)
         self.update_hidden_state()
 
         while s <= tmax:
