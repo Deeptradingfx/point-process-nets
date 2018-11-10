@@ -3,8 +3,8 @@ import numpy as np
 from models.ctlstm import NeuralCTLSTM, EventGen
 
 
-def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer, event_times,
-                        sequence_length, input_size, tmax):
+def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
+                        event_times, sequence_length, input_size, tmax):
     """Train the Neural Hawkes CTLSTM on input sequence
 
     Args:

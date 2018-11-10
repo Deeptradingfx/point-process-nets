@@ -70,7 +70,7 @@ class NeuralCTLSTM(nn.Module):
         """
         # TODO concatenate event embedding with ht
         v = torch.cat((hidden_i,))
-        input = torch.sigmoid(self.input_g(v))
+        inpt = torch.sigmoid(self.input_g(v))
         forget = torch.sigmoid(self.forget_g(v))
         output = torch.sigmoid(self.output_g(v))
         input_target = torch.sigmoid(self.ibar(v))
@@ -80,7 +80,7 @@ class NeuralCTLSTM(nn.Module):
         # Compute the decay parameter
         decay_i = self.decay_act(self.decay_gate(v))
         # Update the cell state
-        cell_i = forget * cell_i + input * z_i
+        cell_i = forget * cell_i + inpt * z_i
         # Update the cell state target
         c_target_i = forget_target * c_target_i + input_target * z_i
         # Decay the cell state to its value before the known next event at t+dt
@@ -124,19 +124,24 @@ class NeuralCTLSTM(nn.Module):
         return self.activation(pre_lambda)
 
     def likelihood(self, event_times, seq_lengths, cell_hist, cell_target_hist,
-                   output_hist, decay_hist, T) -> torch.Tensor:
+                   output_hist, decay_hist, tmax) -> torch.Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
         Args:
             event_times: event occurrence timestamps
             seq_lengths: real sequence lengths
-            c_ti: entire cell state history
-            output: entire output history
-            decay: entire decay history
-        
+            cell_hist: entire cell state history
+            cell_target_hist: cell state target values history
+            output_hist: entire output history
+            decay_hist: entire decay history
+            tmax: temporal horizon
+
+        Returns:
+            log-likelihood of the event times under the learned parameters
+
         Shape:
-            []
+            one-element tensor
         """
         max_seq_length = event_times.size(0)
         inter_times = event_times[1:] - event_times[:-1]
@@ -148,8 +153,8 @@ class NeuralCTLSTM(nn.Module):
         # The integral term is computed using a Monte Carlo method
         n_samples = event_times.shape[0]
         all_samples: torch.Tensor = (
-            T*torch.rand(*event_times.shape, n_samples)
-        ) # uniform samples in [0, T]
+                tmax * torch.rand(*event_times.shape, n_samples)
+        ) # uniform samples in [0, tmax]
         all_samples, _ = all_samples.sort(0)
         lam_samples_ = []
         for i in range(n_samples):
@@ -173,7 +178,7 @@ class NeuralCTLSTM(nn.Module):
                 pdb.set_trace()
                 raise
         lam_samples_ = torch.stack(lam_samples_)
-        integral = torch.sum(T*lam_samples_, dim=1)
+        integral = torch.sum(tmax * lam_samples_, dim=1)
         # Tensor of dim. batch_size
         # of the values of the likelihood
         res = -log_sum + integral
@@ -201,16 +206,16 @@ class EventGen:
 
         WARNING: Check the model is in evaluation mode!
         """
-        assert not(self.model.training)
-
+        assert not self.model.training
+        # Reinitialize sequence
+        self.sequence_ = []
         s = 0.0
-        # Store the sequence inside the object
         self.sequence_.append(s)
         self.update_hidden_state()
 
         while s <= tmax:
-            lbdaMax = self.update_max_lambda()
-            dt = -1./lbdaMax*np.log(np.random.rand())
+            lbda_max = self.update_max_lambda()
+            dt = -1./lbda_max*np.log(np.random.rand())
             s += dt.item() # Increment s
             if s > tmax:
                 break
@@ -223,7 +228,7 @@ class EventGen:
             # Apply activation function to hidden state
             intens = self.model.activation(self.model.w_alpha(hidden_state_s)).item()
             u = np.random.rand() # random in [0,1]
-            if u <= intens/lbdaMax:
+            if u <= intens/lbda_max:
                 self.update_hidden_state()
                 self.sequence_.append(s)
         self.sequence_.pop(0)
@@ -262,7 +267,6 @@ class EventGen:
         .. math::
             o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
         """
-        t = self.sequence_[-1]
         w_al = self.model.w_alpha.weight.data
         cell_diff = self.cell_t - self.cell_target
         mult_prefix = w_al*self.output
