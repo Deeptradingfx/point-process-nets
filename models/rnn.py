@@ -9,6 +9,8 @@ class HawkesRNNModel(nn.Module):
     """
     A Hawkes model based on a simple recurrent neural network architecture.
 
+    Utilises a RNN Cell to update the hidden state with each incoming event.
+
     We denote by :math:`N` the sequence lengths.
     """
 
@@ -17,8 +19,9 @@ class HawkesRNNModel(nn.Module):
         self.hidden_size = hidden_size
         self.rnn_layer = nn.RNNCell(1, hidden_size, nonlinearity='relu')
         self.decay_layer = nn.Linear(hidden_size, 1)
+        self.decay_activ = nn.Softplus(beta=3.0)
         self.intensity_layer = nn.Linear(hidden_size, 1, bias=False)
-        self.intensity_activ = nn.Softplus(beta=3)
+        self.intensity_activ = nn.Softplus(beta=3.0)
 
     def forward(self, dt: Tensor, hidden: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -30,11 +33,12 @@ class HawkesRNNModel(nn.Module):
             hidden: previous hidden state
 
         Returns:
-
+            The hidden state and decay value for the interval.
+            Collect them during training to use for computing the loss.
         """
         hidden = self.rnn_layer(dt, hidden)
         # Compute new decay parameter
-        decay = F.softplus(self.decay_layer(hidden))
+        decay = self.decay_activ(self.decay_layer(hidden))
         return hidden, decay
 
     def initialize_hidden(self) -> Tensor:
@@ -104,15 +108,16 @@ class HawkesRNNModel(nn.Module):
             tmax:
 
         Returns:
-
+            Sequence of event times with corresponding event intensities.
         """
         with torch.no_grad():
-            s = Tensor([0.0])
+            s = Tensor([[0.0]])
             hidden = self.initialize_hidden()
             t = s.clone()
             event_times = [t]  # record sequence start event
             event_intens = []
-            decay = F.softplus(self.decay_layer(hidden))
+            decay = self.decay_activ(self.decay_layer(hidden))
+            event_decay = []
 
             while s < tmax:
                 max_lbda = self.get_max_lbda(hidden)
@@ -131,11 +136,17 @@ class HawkesRNNModel(nn.Module):
                     # accept event
                     # update hidden state
                     hidden = hidden_candidate.clone()
+                    hidden = self.rnn_layer(s-t, hidden)
                     event_intens.append(intens_candidate)
+                    # update decay
+                    decay = self.decay_activ(self.decay_layer(hidden))
+                    event_decay.append(decay)
                     t = s.clone()
                     event_times.append(t)
-
-            return event_times, event_intens
+            event_times = torch.stack(event_times, dim=2).squeeze(0).squeeze(0)
+            event_intens = torch.stack(event_intens, dim=2).squeeze(0).squeeze(0)
+            event_decay = torch.stack(event_decay, dim=2).squeeze(0).squeeze(0)
+            return event_times, event_intens, event_decay
 
     def get_max_lbda(self, hidden: Tensor):
         """
