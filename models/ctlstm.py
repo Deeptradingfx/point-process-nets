@@ -202,6 +202,8 @@ class CTGenerator:
             self.hidden_hist = []
         self.sequence_ = []
         self.lbda_max_seq_ = []
+        self.output = None
+        self.cell_decay = None
 
     def generate_sequence(self, tmax: float) -> typing.List[torch.Tensor]:
         """

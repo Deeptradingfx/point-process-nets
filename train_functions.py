@@ -1,6 +1,5 @@
 import torch
-import numpy as np
-from models.ctlstm import NeuralCTLSTM, CTGenerator
+from models.ctlstm import NeuralCTLSTM
 
 
 def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
