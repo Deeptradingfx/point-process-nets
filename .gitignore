@@ -16,6 +16,7 @@ __*.tex
 $.DS_Store
 
 # Python
+__pycache__
 **/*/__pycache__
 
 # Jupyter
