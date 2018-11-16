@@ -17,7 +17,10 @@ class HawkesRNNModel(nn.Module):
     def __init__(self, hidden_size: int):
         super(HawkesRNNModel, self).__init__()
         self.hidden_size = hidden_size
-        self.rnn_layer = nn.RNNCell(1, hidden_size, nonlinearity='tanh')
+        self.rnn_layer = nn.Sequential(
+            nn.Linear(1 + hidden_size, hidden_size),
+            nn.Softplus(beta=3.0)
+        )
         self.decay_layer = nn.Linear(hidden_size, 1)
         self.decay_activ = nn.Softplus(beta=3.0)
         self.intensity_layer = nn.Linear(hidden_size, 1, bias=False)
@@ -36,7 +39,8 @@ class HawkesRNNModel(nn.Module):
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
-        hidden = self.rnn_layer(dt, hidden)
+        concat = torch.cat((dt, hidden), dim=1)
+        hidden = self.rnn_layer(concat)
         # Compute new decay parameter
         decay = self.decay_activ(self.decay_layer(hidden))
         hidden_after_decay = hidden*torch.exp(-decay*dt)
@@ -141,7 +145,7 @@ class HawkesRNNModel(nn.Module):
                 if u2.item() <= ratio:
                     # accept event
                     # update hidden state by running the RNN cell on it
-                    hidden = self.rnn_layer(s-t, hidden)
+                    hidden = self.rnn_layer(torch.cat((s-t, hidden), dim=1))
                     intens_candidate = self.intensity_activ(self.intensity_layer(hidden))
                     event_intens.append(intens_candidate)
                     # update decay
@@ -150,6 +154,7 @@ class HawkesRNNModel(nn.Module):
                     t = s.clone()
                     event_times.append(t)
                 max_lbda = intens_candidate
+            print()
             event_times = torch.stack(event_times, dim=2).squeeze(0).squeeze(0)
             event_intens = torch.stack(event_intens, dim=2).squeeze(0).squeeze(0)
             event_decay = torch.stack(event_decay, dim=2).squeeze(0).squeeze(0)
