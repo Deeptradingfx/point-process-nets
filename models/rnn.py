@@ -26,33 +26,39 @@ class HawkesRNNModel(nn.Module):
         self.intensity_layer = nn.Linear(hidden_size, 1, bias=False)
         self.intensity_activ = nn.Softplus(beta=3.0)
 
-    def forward(self, dt: Tensor, hidden: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, dt: Tensor, hidden: Tensor, decay: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Forward pass of the network.
 
+        Define the network parameters for the next interval :math:`[t_i,t_{i+1})`
+        from the data on the current interval :math:`[t_{i-1},t_i)`.
+
         Args:
-            dt: interval of time before next event
+            dt: interval of time before event :math:`i`
                 Shape: N * batch * 1
-            hidden: previous hidden state, decayed to its value just before this event
+            hidden: hidden state :math:`h_i` computed after :math:`t_{i-1}` occurred
+            decay: decay parameter for the current interval, computed at :math:`t_{i-1}`
 
         Returns:
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
+        hidden_after_decay = hidden*torch.exp(-decay*dt)
+        # Decay value, compute from decayed hidden state
+        decay = self.decay_activ(self.decay_layer(hidden))
+        # Now the event t_i occurs, we know dt has elapsed since t_{i-1}
+        # Update hidden state, an event just occurred
         concat = torch.cat((dt, hidden), dim=1)
         hidden = self.rnn_layer(concat)
-        # Compute new decay parameter
-        decay = self.decay_activ(self.decay_layer(hidden))
-        hidden_after_decay = hidden*torch.exp(-decay*dt)
         return hidden, decay, hidden_after_decay
 
-    def initialize_hidden(self) -> Tensor:
+    def initialize_hidden(self) -> Tuple[Tensor, Tensor]:
         """
 
         Returns:
             Shape: batch * hidden_size
         """
-        return torch.rand(1, self.hidden_size)
+        return torch.rand(1, self.hidden_size), torch.zeros(1)
 
     def compute_intensity(self, hidden, decay, s, t) -> Tensor:
         """
@@ -118,19 +124,16 @@ class HawkesRNNModel(nn.Module):
         with torch.no_grad():
             s = Tensor([[0.0]])
             t = s.clone()
-            hidden = self.initialize_hidden()
+            hidden, decay = self.initialize_hidden()
             event_times = [t]  # record sequence start event
             event_intens = []
-            decay = self.decay_activ(self.decay_layer(hidden))
             event_decay = []
             max_lbda = self.intensity_activ(self.intensity_layer(hidden))
 
             while s < tmax:
                 u1 = torch.rand(1)
-                print('max lbda {:}'.format(max_lbda), end='\t')
                 # Candidate inter-arrival time
                 ds = -1.0/max_lbda*u1.log()
-                print("time increment {:}".format(ds.item()), end='\t')
                 # update last tried time
                 s = s.clone() + ds
                 if s > tmax:
@@ -141,7 +144,6 @@ class HawkesRNNModel(nn.Module):
                 intens_candidate = self.intensity_activ(
                     self.intensity_layer(hidden))
                 ratio = (intens_candidate/max_lbda).item()
-                print("ratio {:}".format(ratio))
                 if u2.item() <= ratio:
                     # accept event
                     # update hidden state by running the RNN cell on it
@@ -154,7 +156,6 @@ class HawkesRNNModel(nn.Module):
                     t = s.clone()
                     event_times.append(t)
                 max_lbda = intens_candidate
-            print()
             event_times = torch.stack(event_times, dim=2).squeeze(0).squeeze(0)
             event_intens = torch.stack(event_intens, dim=2).squeeze(0).squeeze(0)
             event_decay = torch.stack(event_decay, dim=2).squeeze(0).squeeze(0)
