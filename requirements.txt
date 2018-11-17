@@ -1,6 +1,5 @@
 pytorch>=0.4.1
 numpy>=1.14
-numba>=0.40
 matplotlib>=2.1
 pytorch>=0.4.1
 tqdm>=4.26.0
