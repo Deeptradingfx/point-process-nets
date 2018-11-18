@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from torch import Tensor
 from typing import Tuple
-import torch.nn.functional as F
 
 
 class HawkesRNNModel(nn.Module):
