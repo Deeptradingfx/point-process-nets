@@ -30,34 +30,38 @@ class HawkesRNNModel(nn.Module):
         Forward pass of the network.
 
         Define the network parameters for the next interval :math:`[t_i,t_{i+1})`
-        from the data on the current interval :math:`[t_{i-1},t_i)`.
+        from the data on the current interval :math:`[t_{i-1},t_i)`:
+        :math:`\Delta t_i = t_i - t_{i-1}`, :math:`h_i` and :math:`\delta_i`.
 
         Args:
-            dt: interval of time before event :math:`i`
-                Shape: N * batch * 1
+            dt: interval of time before event :math:`i`, :math:`\Delta t_i`
+                Shape: batch * 1
             hidden: hidden state :math:`h_i` computed after :math:`t_{i-1}` occurred
-            decay: decay parameter for the current interval, computed at :math:`t_{i-1}`
+                Shape: batch * hidden_size
+            decay: decay parameter for the current interval, computed at the previous time :math:`t_{i-1}`
+                Shape: batch * 1
 
         Returns:
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
-        hidden_after_decay = hidden*torch.exp(-decay*dt)
-        # Decay value, compute from decayed hidden state
-        decay = self.decay_activ(self.decay_layer(hidden))
+        # Compute h(t_i)
+        hidden_after_decay = hidden*torch.exp(-decay*dt)  # shape batch * hidden_size
+        # Decay value for the next interval, predicted from the decayed hidden state
+        decay = self.decay_activ(self.decay_layer(hidden_after_decay))
         # Now the event t_i occurs, we know dt has elapsed since t_{i-1}
         # Update hidden state, an event just occurred
-        concat = torch.cat((dt, hidden), dim=1)
-        hidden = self.rnn_layer(concat)
+        concat = torch.cat((dt, hidden), dim=1)  # shape batch * (input_dim + hidden_size)
+        hidden = self.rnn_layer(concat)  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
 
-    def initialize_hidden(self) -> Tuple[Tensor, Tensor]:
+    def initialize_hidden(self, batch_size: int = 1) -> Tuple[Tensor, Tensor]:
         """
 
         Returns:
-            Shape: batch * hidden_size
+            Shape: batch * hidden_size, batch * 1
         """
-        return torch.rand(1, self.hidden_size), torch.zeros(1)
+        return torch.rand(batch_size, self.hidden_size), torch.zeros(batch_size, 1)
 
     def compute_intensity(self, hidden, decay, s, t) -> Tensor:
         """
@@ -73,10 +77,15 @@ class HawkesRNNModel(nn.Module):
             Intensity function value at time s.
         """
         # Compute hidden state at time s
-        h_t = hidden*torch.exp(-decay*(s-t))
+        try:
+            h_t = hidden*torch.exp(-decay*(s-t))
+        except Exception:
+            import pdb;
+            pdb.set_trace()
         return self.intensity_activ(self.intensity_layer(h_t))
 
-    def compute_loss(self, sequence: Tensor, hiddens: Tensor, decays: Tensor, tmax: float) -> Tensor:
+    def compute_loss(self, sequence: Tensor, batch_sizes: Tensor,
+                     hiddens: Tensor, decays: Tensor, tmax: float) -> Tensor:
         """
         Negative log-likelihood.
 
@@ -84,9 +93,10 @@ class HawkesRNNModel(nn.Module):
 
         Args:
             sequence: event sequence, including start time 0
-                Shape: N + 1
+                Shape: (N + 1) * batch
+            batch_sizes: batch sizes for each event sequence tensor, by length
             hiddens:
-                Shape: (N + 1) * hidden_size
+                Shape: (N + 1) * batch * hidden_size
             decays:
                 Shape: N + 1
             tmax: time interval bound
@@ -94,21 +104,35 @@ class HawkesRNNModel(nn.Module):
         Returns:
 
         """
-        inter_times: Tensor = sequence[1:] - sequence[:-1]  # shape N
-        n_times = inter_times.shape[0]
-        intensity_at_event_times: Tensor = self.intensity_activ(self.intensity_layer(hiddens))
+        dt_sequence: Tensor = sequence[1:] - sequence[:-1]  # shape N * batch
+        n_times = len(hiddens)
+        try:
+            intensity_at_event_times: Tensor = [
+                self.intensity_activ(self.intensity_layer(hiddens[i]))
+                for i in range(n_times)
+            ]  # shape N * batches
+        except Exception:
+            import pdb; pdb.set_trace()
+        # shape batch * N
+        intensity_at_event_times = nn.utils.rnn.pad_sequence(
+            intensity_at_event_times, batch_first=True, padding_value=1.0)
         first_term = intensity_at_event_times.log().sum(dim=0)  # scalar
         # Take uniform time samples inside of each inter-event interval
-        time_samples = sequence[:-1] + inter_times * torch.rand_like(inter_times)  # shape N
-        intensity_at_samples = torch.stack([
-            self.compute_intensity(hiddens[i], decays[i], time_samples[i], sequence[i])
-            for i in range(n_times)
-        ])
-        integral_estimates: Tensor = inter_times*intensity_at_samples
-        last_sample_time = sequence[-1] + (tmax - sequence[-1]) * torch.rand(1)
-        last_lambda_sample = self.compute_intensity(hiddens[-1], decays[-1], last_sample_time, sequence[-1])
-        second_term = integral_estimates.sum(dim=0) + (tmax - sequence[-1]) * last_lambda_sample  # scalar
-        return - first_term + second_term
+        time_samples = sequence[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
+        intensity_at_samples = []
+        for i in range(n_times):
+            try:
+                v = self.compute_intensity(hiddens[i], decays[i],
+                                       time_samples[i, :batch_sizes[i]], sequence[i, :batch_sizes[i]])
+            except Exception:
+                print(batch_sizes[i])
+            intensity_at_samples.append(v)
+        intensity_at_samples = nn.utils.rnn.pad_sequence(
+            intensity_at_samples, batch_first=True, padding_value=0.0)
+        # import pdb; pdb.set_trace()
+        integral_estimates: Tensor = dt_sequence*intensity_at_samples
+        second_term = integral_estimates.sum(dim=0)
+        return (- first_term + second_term).mean()
 
     def generate_sequence(self, tmax: float):
         """
