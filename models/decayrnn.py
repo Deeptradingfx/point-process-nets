@@ -15,7 +15,7 @@ class HawkesDecayRNN(nn.Module):
         super(HawkesDecayRNN, self).__init__()
         self.hidden_size = hidden_size
         self.rnn_layer = nn.Sequential(
-            nn.Linear(1 + hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size),
             nn.Softplus(beta=3.0)
         )
         self.decay_layer = nn.Linear(hidden_size, 1)
@@ -49,8 +49,8 @@ class HawkesDecayRNN(nn.Module):
         decay = self.decay_activ(self.decay_layer(hidden_after_decay))
         # Now the event t_i occurs, we know dt has elapsed since t_{i-1}
         # Update hidden state, an event just occurred
-        concat = torch.cat((dt, hidden), dim=1)  # shape batch * (input_dim + hidden_size)
-        hidden = self.rnn_layer(concat)  # shape batch * hidden_size
+        # concat = torch.cat((dt, hidden), dim=1)  # shape batch * (input_dim + hidden_size)
+        hidden = self.rnn_layer(hidden)  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
 
     def initialize_hidden(self, batch_size: int = 1) -> Tuple[Tensor, Tensor]:
