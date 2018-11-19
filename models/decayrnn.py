@@ -168,7 +168,7 @@ class HawkesDecayRNN(nn.Module):
                 if u2.item() <= ratio:
                     # accept event
                     # update hidden state by running the RNN cell on it
-                    hidden = self.rnn_layer(torch.cat((s-t, hidden), dim=1))
+                    hidden = self.rnn_layer(hidden)
                     intens_candidate = self.intensity_activ(self.intensity_layer(hidden))
                     event_intens.append(intens_candidate)
                     # update decay
