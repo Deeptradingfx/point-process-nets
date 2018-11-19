@@ -38,3 +38,5 @@ model.eval() # Evaluation mode
 4. The Neural Hawkes Process: A Neurally Self-Modulating Multivariate Point Process, H. Mei, J. Eisner  <https://arxiv.org/pdf/1612.09328.pdf>
 5. Modeling The Intensity Function Of Point Process Via Recurrent Neural Networks <https://arxiv.org/pdf/1705.08982.pdf>
 6. On a Bayesian RNN for learning the decrease speed parameter in a process: Neural Hawkes Process Memory (Mike Mozer)  <http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf>
+7. Recurrent Marked Temporal Point Processes:
+<https://www.kdd.org/kdd2016/papers/files/rpp1081-duA.pdf>
