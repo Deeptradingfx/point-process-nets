@@ -94,7 +94,7 @@ class HawkesDecayRNN(nn.Module):
                 Shape: (N + 1) * batch
             batch_sizes: batch sizes for each event sequence tensor, by length
             hiddens:
-                Shape: (N + 1) * batch * hidden_size
+                Shape: (N+ 1) * batch * hidden_size
             decays:
                 Shape: N + 1
             tmax: time interval bound
