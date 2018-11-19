@@ -4,17 +4,15 @@ from torch import Tensor
 from typing import Tuple
 
 
-class HawkesRNNModel(nn.Module):
+class HawkesDecayRNN(nn.Module):
     """
-    A Hawkes model based on a simple recurrent neural network architecture.
-
-    Utilises a RNN Cell to update the hidden state with each incoming event.
+    Recurrent neural network (RNN) model using decaying hidden states between events.
 
     We denote by :math:`N` the sequence lengths.
     """
 
     def __init__(self, hidden_size: int):
-        super(HawkesRNNModel, self).__init__()
+        super(HawkesDecayRNN, self).__init__()
         self.hidden_size = hidden_size
         self.rnn_layer = nn.Sequential(
             nn.Linear(1 + hidden_size, hidden_size),
