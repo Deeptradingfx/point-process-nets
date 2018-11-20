@@ -8,7 +8,7 @@ __*.tex
 *.fls
 *.log
 *.aux
-*.pdf
+rapport/*.pdf
 *.xdv
 
 !biblio/*.pdf

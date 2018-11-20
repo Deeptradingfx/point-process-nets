@@ -69,7 +69,7 @@ h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{ih}k_i + b_{ih})\quad\text{(\textit{
 \delta_{i+1} &= f(W_dh(t_i) + b_d).
 \end{align}
 \end{subequations}
-On utilise alors le fait que $h(t_i) = h_{i-1}\exp(-\delta_i\Delta t_i)$ d'après \eqref{eq:decayrnnhiddenstate}.
+On utilise alors le fait que $h(t_i) = h_{i}\exp(-\delta_i\Delta t_i)$ d'après \eqref{eq:decayrnnhiddenstate}.
 
 La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
 \[
