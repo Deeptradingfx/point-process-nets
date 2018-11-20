@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch import Tensor
-from typing import Tuple
+from typing import Tuple, List
 
 
 class HawkesDecayRNN(nn.Module):
@@ -83,7 +83,7 @@ class HawkesDecayRNN(nn.Module):
         return self.intensity_activ(self.intensity_layer(h_t))
 
     def compute_loss(self, sequence: Tensor, batch_sizes: Tensor,
-                     hiddens: Tensor, decays: Tensor, tmax: float) -> Tensor:
+                     hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
         Negative log-likelihood.
 

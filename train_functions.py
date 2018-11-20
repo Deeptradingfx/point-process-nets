@@ -1,5 +1,9 @@
 import torch
+from torch import Tensor
+from torch import nn
+from torch.optim import Optimizer
 from models.ctlstm import NeuralCTLSTM
+from models.decayrnn import HawkesDecayRNN
 
 
 def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
@@ -56,3 +60,51 @@ def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
         decay_cell=decay_hist
     )
     return loss, hist_dict
+
+
+def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, sequence: torch.Tensor,
+                   seq_lengths: torch.Tensor, tmax: float):
+    """Train the HawkesDecayRNN model on the input data sequence
+
+    Args:
+        model: recurrent neural net model
+        tmax:
+        sequence: input event sequence
+        seq_lengths: sequence length
+        optimizer:
+    """
+    max_seq_length = seq_lengths[0]
+    sequence = sequence[:max_seq_length]
+    # Embed the sequence into the event arrival intervals
+    sequence = torch.cat((torch.zeros_like(sequence[:1]), sequence))
+    dt_sequence = sequence[1:] - sequence[:-1]
+    # Trim the sequence to its real length
+    packed_seq = nn.utils.rnn.pack_padded_sequence(dt_sequence, seq_lengths)
+    # Reshape to a format the RNN can understand
+    # N * batch
+    max_batch_size = packed_seq.batch_sizes[0]
+    # Data records
+    # hidd_decayed: 0
+    # decay: 0
+    hidd_decayed, decay = model.initialize_hidden(max_batch_size)
+    hiddens = []
+    decays = []
+    for i in range(max_seq_length):
+        # event t_i is happening
+        batch_size = packed_seq.batch_sizes[i]
+        # hidden state just before this event
+        hidd_decayed = hidd_decayed[:batch_size]
+        # time until next event t_{i+1}
+        dt_batch = dt_sequence[i, :batch_size]
+        hidd, decay, hidd_decayed = model(dt_batch.unsqueeze(1), hidd_decayed)
+        hiddens.append(hidd)
+        decays.append(decay)
+    train_data = {
+        "hidden": hiddens,
+        "decay": decays
+    }
+    loss: Tensor = model.compute_loss(sequence.unsqueeze(2), packed_seq.batch_sizes, hiddens, decays, tmax)
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()  # zero the gradients
+    return train_data, loss.item()
