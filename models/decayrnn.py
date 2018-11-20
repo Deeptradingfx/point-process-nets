@@ -145,12 +145,12 @@ class HawkesDecayRNN(nn.Module):
             event_times = [t]  # record sequence start event
             event_hidden = []
             event_decay = []
-            max_lbda = self.intensity_activ(self.intensity_layer(hidden))
+            max_lbda: Tensor = self.intensity_activ(self.intensity_layer(hidden))
 
             while s < tmax:
                 u1 = torch.rand(1)
                 # Candidate inter-arrival time
-                ds = -1.0/max_lbda*u1.log()
+                ds: Tensor = torch.empty_like(u1).exponential_(lambd=max_lbda.item())
                 # update last tried time
                 s = s.clone() + ds
                 if s > tmax:
@@ -169,10 +169,11 @@ class HawkesDecayRNN(nn.Module):
                     decay = self.decay_activ(self.decay_layer(hidden))
                     # update hidden state by running the RNN cell on it
                     hidden = self.rnn_layer(hidden)
-                    intens_candidate = self.intensity_activ(self.intensity_layer(hidden))
+                    max_lbda = self.intensity_activ(self.intensity_layer(hidden))
                     event_hidden.append(hidden)
                     event_decay.append(decay)
-                max_lbda = intens_candidate
+                else:
+                    max_lbda = intens_candidate
             event_times = torch.stack(event_times, dim=2).squeeze(0).squeeze(0)
             event_decay = torch.stack(event_decay, dim=2).squeeze(0).squeeze(0)
             return event_times, event_hidden, event_decay
