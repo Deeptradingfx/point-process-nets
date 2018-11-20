@@ -2,7 +2,8 @@
 
 Supervised by [Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
 
-Synthetic point processes are simulated using [`point-process-rust`](https://github.com/ManifoldFR/point-process-rust).
+Synthetic point processes are simulated using [`tick`](https://github.com/X-DataInitiative/tick)
+and [`point-process-rust`](https://github.com/ManifoldFR/point-process-rust).
 
 ## Objective
 
@@ -12,6 +13,7 @@ Use a modified neural network-based Hawkes process model for next event predicti
 
 **Directories**:
 
+* `data` contains the data
 * `biblio` contains the bibliography
 * `rapport` contains the project report
 * `notebooks` contains the Jupyter notebooks
