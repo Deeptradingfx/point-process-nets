@@ -1,30 +1,80 @@
-\documentclass[11pt,twoside]{article}
+% !TeX spellcheck = fr_FR
+\documentclass[11pt]{article}
+\usepackage[a4paper,hmargin=3.6cm]{geometry}
 \usepackage{mathtools}
 \usepackage{amsfonts}
+
+\usepackage{graphicx}
 \usepackage{titlesec}
 
 \usepackage{polyglossia}
 \setdefaultlanguage{french}
 
 \title{\textbf{Rapport de projet}\\
-  \textit{Simulation et Modélisation de trading haute fréquence à l’aide de processus de Hawkes}
+  \textit{Processus ponctuels récurrents}
 }
 \author{
   Wilson \textsc{Jallet}\\
   Cheikh \textsc{Fall}
 }
 
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\ZZ}{\mathbb{Z}}
+
+
 \begin{document}
 \maketitle
 
-\section{Théorie}
+\section{Introduction}
 
-Un processus de Hawkes est un processus ponctuel $\{N_t\}_{t}$.
 
-\section{Résultats expérimentaux}
+\section{Modèles}
 
-\subsection{Simulations}
+Un facteur important dans la prédiction d'événements est si le modèle utilisé peut prendre en compte les événements passés.
 
-\subsection{Acquisition de données \& estimation de paramètres}
+\subsection{Modèle de base: le processus de Hawkes}
 
+Un processus de Hawkes est un processus ponctuel $\{(t_i, k_i)\}$ modélisant l'arrivée d'événements de types $k_i\in[1..K]$ à des instants $t_i$. C'est le modèle élémentaire de processus dont l'intensité $\lambda_t$ dépend du passé du processus. Sa mesure d'intensité conditionnellement au passé du processus s'écrit souvent sous la forme (vectorielle)
+\begin{equation}
+	\lambda_t = \mu_t + \int_0^t g(t-s)\,dN_s
+\end{equation}
+où:\begin{itemize}
+	\item $N^i_t$ est le nombre total d'événements de type $i$,
+	\item $\lambda_t^i$ est l'intensité des événements de type $i$,
+	\item $\mu^i_t$ est l'intensité de base des événements de type $i$,
+	\item $g(t) \in \RR^{K\times K}$ et le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$.
+\end{itemize} 
+
+\subsection{Réseaux de neurones récurrents}
+
+Le principe d'un réseau de neurone récurrent (\textit{recurrent neural network}, RNN) est que l'entraînement du réseau prend en compte les événements passés, via un état caché $h\in\RR^D$ (\textit{hidden state}), mis à jour à chaque passage dans le réseau. L'entier $D$ est la dimension cachée du réseau.
+
+\subsection{Réseau récurrent avec amortissement (Decay-RNN)}
+
+Il s'agit d'une variante du réseau récurrent simple.
+
+On postule que l'intensité est de la forme
+\begin{equation}\label{eq:decayrnnhiddenstate}
+	\lambda_t = f(W_l h(t))
+\end{equation}
+où l'état caché $h(t)\in\RR^D$ est désormais continu. Le temps écoulé entre chaque événement est pris en compte par un amortissement
+\begin{equation}
+	h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
+\end{equation}
+où les paramètres $h$ et $\delta$ sont mis à jour pour l'intervalle $(t_i,t_{i+1}]$ via les équations
+\begin{subequations}
+\begin{align}
+h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{ih}k_i + b_{ih})\quad\text{(\textit{hidden layer})} \\
+\delta_{i+1} &= f(W_dh(t_i) + b_d).
+\end{align}
+\end{subequations}
+On utilise alors le fait que $h(t_i) = h_{i-1}\exp(-\delta_i\Delta t_i)$ d'après \eqref{eq:decayrnnhiddenstate}.
+
+La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
+\[
+	x\mapsto \frac{1}{\beta}\ln(1+e^{\beta x}).
+\]
+
+Contrairement au réseau RNN standard, l'incrément de temps $\Delta t_i$ n'est pas donné en argument à la couche cachée.
 \end{document}
