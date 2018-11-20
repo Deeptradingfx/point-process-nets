@@ -9,6 +9,10 @@ class HawkesDecayRNN(nn.Module):
     Recurrent neural network (RNN) model using decaying hidden states between events.
 
     We denote by :math:`N` the sequence lengths.
+
+
+    .. math::
+        h(t) = h_i e^{-\delta_i(t-t_i)}\quad t\in (t_{i-1}, t_i]
     """
 
     def __init__(self, hidden_size: int):
@@ -27,8 +31,7 @@ class HawkesDecayRNN(nn.Module):
         """
         Forward pass of the network.
 
-        Define the network parameters for the next interval :math:`(t_i,t_{i+1}]`
-        from:
+        Computes the network parameters for the next interval :math:`(t_i,t_{i+1}]` from:
 
         * the decayed hidden state :math:`h(t_i) = h_i\exp(-\delta_i(t_i-t_{i-1}))` computed
           for the interval :math:`(t_{i-1},t_i]`
@@ -130,7 +133,7 @@ class HawkesDecayRNN(nn.Module):
 
     def generate_sequence(self, tmax: float):
         """
-        Generate an event sequence on the interval [0, tmax]
+        Generate an event sequence on the interval [0, tmax].
 
         Args:
             tmax: time horizon

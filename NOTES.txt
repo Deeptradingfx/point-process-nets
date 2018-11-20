@@ -1,7 +1,7 @@
 NOTES ON NEURAWKES
 
 In the neurawkes repository the CTLSTM model N-SM-MPP is
-in modules/models, named NeuralHawkesCTLSM
+in modules/models, named NeuralHawkesCTLSTM
 controlled in controllers.py by class
 ControlNeuralHawkesAdaptiveBaseCTSM_time (line 315)
 
