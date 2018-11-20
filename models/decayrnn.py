@@ -20,12 +20,12 @@ class HawkesDecayRNN(nn.Module):
         self.hidden_size = hidden_size
         self.rnn_layer = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
-            nn.Softplus(beta=3.0)
+            nn.ReLU()
         )
         self.decay_layer = nn.Linear(hidden_size, 1)
-        self.decay_activ = nn.Softplus(beta=3.0)
+        self.decay_activ = nn.Softplus(beta=4.0)
         self.intensity_layer = nn.Linear(hidden_size, 1, bias=False)
-        self.intensity_activ = nn.Softplus(beta=3.0)
+        self.intensity_activ = nn.Softplus(beta=4.0)
 
     def forward(self, dt: Tensor, h_decay: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """

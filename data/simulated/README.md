@@ -9,5 +9,6 @@ Must be processed into a PyTorch tensor upon loading.
 * `mu`: baseline (background) process intensity
 * `alpha`: jump size (adjacency in the multivariate case)
 * `decay`: event decay rate
-* `data`: event timestamps
+* `timestamps`: event timestamps
+* `types`: event types
 * `lengths`: event sequence lengths
