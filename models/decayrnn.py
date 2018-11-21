@@ -18,7 +18,7 @@ class HawkesDecayRNN(nn.Module):
     def __init__(self, input_size: int, hidden_size: int):
         """
         Args:
-            input_size: process dimension
+            input_size: process dimension K
             hidden_size: hidden layer dimension
         """
         super(HawkesDecayRNN, self).__init__()
@@ -26,10 +26,11 @@ class HawkesDecayRNN(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.embed = nn.Embedding(input_size, input_size)
-        self.rnn_layer = nn.Sequential(
-            nn.Linear(input_size + hidden_size, hidden_size),
-            nn.ReLU()
-        )
+        #self.rnn_layer = nn.Sequential(
+        #    nn.Linear(input_size + hidden_size, hidden_size),
+        #    nn.ReLU()
+        #)
+        self.rnn_layer = nn.RNNCell(input_size, hidden_size, nonlinearity="relu")
         self.decay_layer = nn.Linear(input_size + hidden_size, 1)
         self.decay_activ = nn.Softplus(beta=4.0)
         self.intensity_layer = nn.Linear(hidden_size, input_size, bias=False)
@@ -67,7 +68,7 @@ class HawkesDecayRNN(nn.Module):
         # concat = torch.cat((dt, hidden), dim=1)  # shape batch * (input_dim + hidden_size)
         decay = self.decay_activ(self.decay_layer(concat))
         # New hidden state h(t_i+)
-        hidden = self.rnn_layer(concat)  # shape batch * hidden_size
+        hidden = self.rnn_layer(x, h_decay)  # shape batch * hidden_size
         # decay the new hidden state to its value h(t_{i+1})
         hidden_after_decay = hidden * torch.exp(-decay * dt)  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
@@ -108,6 +109,8 @@ class HawkesDecayRNN(nn.Module):
         Args:
             sequence: event sequence, including start time 0
                 Shape: (N + 1) * batch
+            seq_types: event types
+                Shape: N * batch * (K + 1)
             batch_sizes: batch sizes for each event sequence tensor, by length
             hiddens:
                 Shape: (N + 1) * batch * hidden_size
@@ -144,7 +147,7 @@ class HawkesDecayRNN(nn.Module):
             for i in range(n_times)
         ]
         intensity_at_samples = nn.utils.rnn.pad_sequence(
-            intensity_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * input_dim
+            intensity_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
         total_intens_samples: Tensor = intensity_at_samples.sum(dim=2, keepdim=True)
         integral_estimates: Tensor = dt_sequence*total_intens_samples
         second_term = integral_estimates.sum(dim=0)

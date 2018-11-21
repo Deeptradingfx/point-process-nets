@@ -15,7 +15,8 @@
 }
 \author{
   Wilson \textsc{Jallet}\\
-  Cheikh \textsc{Fall}
+  Cheikh \textsc{Fall}\\
+  \textit{sous la supervision d'Emmanuel BACRY}
 }
 
 \newcommand{\RR}{\mathbb{R}}
@@ -40,10 +41,10 @@ Un processus de Hawkes est un processus ponctuel $\{(t_i, k_i)\}$ modélisant l'
 	\lambda_t = \mu_t + \int_0^t g(t-s)\,dN_s
 \end{equation}
 où:\begin{itemize}
-	\item $N^i_t$ est le nombre total d'événements de type $i$,
+	\item $N^i_t$ est le nombre total d'événements de type $i$ (la mesure $dN^i_t$ compte le nombre d'événements entre $t$ et $t+dt$),
 	\item $\lambda_t^i$ est l'intensité des événements de type $i$,
 	\item $\mu^i_t$ est l'intensité de base des événements de type $i$,
-	\item $g(t) \in \RR^{K\times K}$ et le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$.
+	\item $g(t) \in \RR^{K\times K}$ est le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$.
 \end{itemize} 
 
 \subsection{Réseaux de neurones récurrents}
@@ -75,7 +76,14 @@ h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{xh}x_i + b_{xh})\quad\text{(\textit{
 
 La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
 \[
-	x\mapsto \frac{1}{\beta}\ln(1+e^{\beta x}).
+	x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}).
 \]
+
+Le réseau s'entraîne en maximisant la log-vraisemblance
+\begin{equation}
+	\mathcal{L}\left(\{(t_i,k_i)\}_i\mid \lambda\right)
+	=
+	\sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
+\end{equation}
 
 \end{document}
