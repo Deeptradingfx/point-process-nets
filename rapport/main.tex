@@ -58,23 +58,24 @@ On postule que l'intensité est de la forme
 \begin{equation}\label{eq:decayrnnhiddenstate}
 	\lambda_t = f(W_l h(t))
 \end{equation}
-où l'état caché $h(t)\in\RR^D$ est désormais continu. Le temps écoulé entre chaque événement est pris en compte par un amortissement
+où l'état caché $h(t)\in\RR^D$ est désormais continu.
+
+Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $x_i$ de l'événement en $t_i$.
+Le temps écoulé entre chaque événement est pris en compte par un amortissement
 \begin{equation}
 	h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
 \end{equation}
-où les paramètres $h$ et $\delta$ sont mis à jour pour l'intervalle $(t_i,t_{i+1}]$ via les équations
+où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i,t_{i+1}]$ via les équations
 \begin{subequations}
 \begin{align}
-h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{ih}k_i + b_{ih})\quad\text{(\textit{hidden layer})} \\
+h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{xh}x_i + b_{xh})\quad\text{(\textit{hidden layer})} \\
 \delta_{i+1} &= f(W_dh(t_i) + b_d).
 \end{align}
 \end{subequations}
-On utilise alors le fait que $h(t_i) = h_{i}\exp(-\delta_i\Delta t_i)$ d'après \eqref{eq:decayrnnhiddenstate}.
 
 La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
 \[
 	x\mapsto \frac{1}{\beta}\ln(1+e^{\beta x}).
 \]
 
-Contrairement au réseau RNN standard, l'incrément de temps $\Delta t_i$ n'est pas donné en argument à la couche cachée.
 \end{document}

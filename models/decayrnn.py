@@ -15,19 +15,27 @@ class HawkesDecayRNN(nn.Module):
         h(t) = h_i e^{-\delta_i(t-t_i)}\quad t\in (t_{i-1}, t_i]
     """
 
-    def __init__(self, hidden_size: int):
+    def __init__(self, input_size: int, hidden_size: int):
+        """
+        Args:
+            input_size: process dimension
+            hidden_size: hidden layer dimension
+        """
         super(HawkesDecayRNN, self).__init__()
+        input_size += 1  # add the dimension of the beginning-of-sequence event type
+        self.input_size = input_size
         self.hidden_size = hidden_size
+        self.embed = nn.Embedding(input_size, input_size)
         self.rnn_layer = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(input_size + hidden_size, hidden_size),
             nn.ReLU()
         )
-        self.decay_layer = nn.Linear(hidden_size, 1)
+        self.decay_layer = nn.Linear(input_size + hidden_size, 1)
         self.decay_activ = nn.Softplus(beta=4.0)
-        self.intensity_layer = nn.Linear(hidden_size, 1, bias=False)
+        self.intensity_layer = nn.Linear(hidden_size, input_size, bias=False)
         self.intensity_activ = nn.Softplus(beta=4.0)
 
-    def forward(self, dt: Tensor, h_decay: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, dt: Tensor, seq_types: Tensor, h_decay: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Forward pass of the network.
 
@@ -39,7 +47,9 @@ class HawkesDecayRNN(nn.Module):
 
         Args:
             dt: interval of time before event :math:`i`, :math:`\Delta t_i`
-                Shape: batch * 1
+                Shape: batch
+            seq_types: sequence event types
+                Shape: batch* * input_size
             h_decay: decayed hidden state :math:`h(t_i)` at the end of :math:`(t_{i-1},t_i]`
                 Shape: batch * hidden_size
 
@@ -47,14 +57,17 @@ class HawkesDecayRNN(nn.Module):
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
+        x = self.embed(seq_types)
+        concat = torch.cat((x, h_decay), dim=1)
+        dt = dt.unsqueeze(1)
         # Compute h(t_i)
         # Decay value for the next interval, predicted from the decayed hidden state
         # Now the event t_i occurs, we know dt has elapsed since t_{i-1}
         # Update hidden state, an event just occurred
         # concat = torch.cat((dt, hidden), dim=1)  # shape batch * (input_dim + hidden_size)
-        decay = self.decay_activ(self.decay_layer(h_decay))
+        decay = self.decay_activ(self.decay_layer(concat))
         # New hidden state h(t_i+)
-        hidden = self.rnn_layer(h_decay)  # shape batch * hidden_size
+        hidden = self.rnn_layer(concat)  # shape batch * hidden_size
         # decay the new hidden state to its value h(t_{i+1})
         hidden_after_decay = hidden * torch.exp(-decay * dt)  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
@@ -85,7 +98,7 @@ class HawkesDecayRNN(nn.Module):
         h_t = hidden*torch.exp(-decay*(s-t))
         return self.intensity_activ(self.intensity_layer(h_t))
 
-    def compute_loss(self, sequence: Tensor, batch_sizes: Tensor,
+    def compute_loss(self, sequence: Tensor, seq_types: Tensor, batch_sizes: Tensor,
                      hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
         Negative log-likelihood.
@@ -107,27 +120,33 @@ class HawkesDecayRNN(nn.Module):
         """
         dt_sequence: Tensor = sequence[1:] - sequence[:-1]  # shape N * batch
         n_times = len(hiddens)
-        intensity_at_event_times: Tensor = [
+        intensity_ev_times: Tensor = [
             self.intensity_activ(self.intensity_layer(hiddens[i]))
             for i in range(n_times)
-        ]  # shape N * batches
-        # shape batch * N
-        intensity_at_event_times = nn.utils.rnn.pad_sequence(
-            intensity_at_event_times, batch_first=True, padding_value=1.0)
-        first_term = intensity_at_event_times.log().sum(dim=0)  # scalar
+        ]
+        # shape N * batch * input_dim
+        intensity_ev_times = nn.utils.rnn.pad_sequence(
+            intensity_ev_times, batch_first=True, padding_value=1.0)
+        ishape = intensity_ev_times.shape
+
+        # import pdb; pdb.set_trace()
+        intensity_ev_times = intensity_ev_times.reshape(
+            ishape[0]*ishape[1], ishape[2]
+        )[seq_types.flatten(), :].reshape(*ishape)
+        first_term = intensity_ev_times.log().sum(dim=0)  # scalar
         # Take uniform time samples inside of each inter-event interval
         # sequence: Tensor = torch.cat((sequence, tmax*torch.ones_like(sequence[-1:, :])))
         # dt_sequence = sequence[1:] - sequence[:-1]
         time_samples = sequence[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
-        intensity_at_samples = []
-        for i in range(n_times):
-            v = self.compute_intensity(hiddens[i], decays[i],
-                                       time_samples[i, :batch_sizes[i]], sequence[i, :batch_sizes[i]])
-            intensity_at_samples.append(v)
+        intensity_at_samples = [
+            self.compute_intensity(hiddens[i], decays[i],
+                                   time_samples[i, :batch_sizes[i]], sequence[i, :batch_sizes[i]])
+            for i in range(n_times)
+        ]
         intensity_at_samples = nn.utils.rnn.pad_sequence(
-            intensity_at_samples, batch_first=True, padding_value=0.0)
-        # import pdb; pdb.set_trace()
-        integral_estimates: Tensor = dt_sequence*intensity_at_samples
+            intensity_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * input_dim
+        total_intens_samples: Tensor = intensity_at_samples.sum(dim=2, keepdim=True)
+        integral_estimates: Tensor = dt_sequence*total_intens_samples
         second_term = integral_estimates.sum(dim=0)
         return (- first_term + second_term).mean()
 
