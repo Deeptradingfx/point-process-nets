@@ -2,13 +2,20 @@
 \documentclass[11pt]{article}
 \usepackage[a4paper,hmargin=3.6cm]{geometry}
 \usepackage{mathtools}
-\usepackage{amsfonts}
-
+\usepackage{amsfonts,amssymb}
+\usepackage{stmaryrd}
 \usepackage{graphicx}
 \usepackage{titlesec}
+\usepackage{hyperref}
+
+\usepackage{dsfont}
 
 \usepackage{polyglossia}
+\usepackage{csquotes}
+\usepackage[backend=biber,sorting=nyt]{biblatex}
 \setdefaultlanguage{french}
+\addbibresource{references.bib}
+
 
 \title{\textbf{Rapport de projet}\\
   \textit{Processus ponctuels récurrents}
@@ -29,14 +36,15 @@
 
 \section{Introduction}
 
+On cherche à modéliser des flux d'événements discrets, arrivant à des instants $t_i$ et associés à des \textit{types} $k_i$, et dont l'évolution dépend du passé: des événements de certains types peut en inciter ou \textit{exciter} d'autres (dans le sens où leur arrivée devient plus probable dans le futur). Par exemple, ces événements peuvent être des messages sur un réseau social comme Twitter (le type pourrait alors être la <<~popularité~>> de l'auteur du message, et chaque message en inciterait d'autres sous la forme de \textit{retweets}), ou des ordres sur un marché financier, où les types seraient s'il s'agit d'un achat (\textit{bid}), d'une vente (\textit{ask}), d'une annulation (\textit{cancel}), au prix du marché ou exécuté à partir d'un certain prix.
 
 \section{Modèles}
 
-Un facteur important dans la prédiction d'événements est si le modèle utilisé peut prendre en compte les événements passés.
+Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événements discrets est celle des \textit{processus ponctuels}.
 
 \subsection{Modèle de base: le processus de Hawkes}
 
-Un processus de Hawkes est un processus ponctuel $\{(t_i, k_i)\}$ modélisant l'arrivée d'événements de types $k_i\in[1..K]$ à des instants $t_i$. C'est le modèle élémentaire de processus dont l'intensité $\lambda_t$ dépend du passé du processus. Sa mesure d'intensité conditionnellement au passé du processus s'écrit souvent sous la forme (vectorielle)
+Le processus de Hawkes est un modèle élémentaire de processus ponctuel dépendant de son propre passé. Conditionnellement au passé du processus, son intensité s'écrit sous la forme (vectorielle)
 \begin{equation}
 	\lambda_t = \mu_t + \int_0^t g(t-s)\,dN_s
 \end{equation}
@@ -49,20 +57,26 @@ où:\begin{itemize}
 
 \subsection{Réseaux de neurones récurrents}
 
-Le principe d'un réseau de neurone récurrent (\textit{recurrent neural network}, RNN) est que l'entraînement du réseau prend en compte les événements passés, via un état caché $h\in\RR^D$ (\textit{hidden state}), mis à jour à chaque passage dans le réseau. L'entier $D$ est la dimension cachée du réseau.
+Les réseaux de neurones récurrents (\textit{recurrent neural networks}, RNN), sont des modèles de réseaux de neurones avec mémoire, qui prennent en compte l'historique entier de leurs \textit{inputs} au cours de leur entraînement, via un vecteur $h\in\RR^D$ (appelé état caché, \textit{hidden state}), mis à jour à chaque passage dans le réseau (voir la \autoref{fig:simpleRNN}). L'entier $D$ est la dimension cachée du réseau.
 
-\subsection{Réseau récurrent avec amortissement (Decay-RNN)}
+Ces modèles récurrents sont surtout utilisés pour la compréhension de texte (vocabulaire, syntaxe\ldots), où ils se sont montrés assez efficaces. \cite{unreasonableEffectivenessRNN}
 
-Il s'agit d'une variante du réseau récurrent simple.
+\begin{figure}
+	\centering
+	\includegraphics[height=0.2\textheight]{diagrams/rnn.pdf}
+	\caption{Les modèles RNN impliquent des boucle: la sortie $h_t$ est utilisée calculer $h_{t+1}$.}\label{fig:simpleRNN}
+\end{figure}
+
+\subsubsection{Réseau récurrent avec amortissement (Decay-RNN)}
 
 On postule que l'intensité est de la forme
 \begin{equation}\label{eq:decayrnnhiddenstate}
 	\lambda_t = f(W_l h(t))
 \end{equation}
-où l'état caché $h(t)\in\RR^D$ est désormais continu.
+où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante du réseau RNN standard, inspiré du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
 
-Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $x_i$ de l'événement en $t_i$.
-Le temps écoulé entre chaque événement est pris en compte par un amortissement
+Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$\footnote{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = (0,1,0)^\intercal$}.
+Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
 \begin{equation}
 	h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
 \end{equation}
@@ -74,16 +88,27 @@ h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{xh}x_i + b_{xh})\quad\text{(\textit{
 \end{align}
 \end{subequations}
 
+Le réseau s'entraîne en maximisant la log-vraisemblance
+
 La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
 \[
-	x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}).
+x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}).
 \]
 
-Le réseau s'entraîne en maximisant la log-vraisemblance
+
+\section{Algorithmes et implémentation}
+
+Les réseaux de neurones sont implémentés en utilisant la librairie \textsf{PyTorch} \cite{paszke2017automatic}.
+
+La log-vraisemblance d'une suite d'événements $\{(t_i,x_i)\}_i$ est donnée par la formule
 \begin{equation}
-	\mathcal{L}\left(\{(t_i,k_i)\}_i\mid \lambda\right)
-	=
-	\sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
+\mathcal{L}\left(\{(t_i,k_i)\}_i)\right)
+=
+\sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
 \end{equation}
+
+
+\printbibliography
+
 
 \end{document}

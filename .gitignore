@@ -8,6 +8,12 @@ __*.tex
 *.fls
 *.log
 *.aux
+*.out
+*.run.xml
+*.bbl
+*.bcf
+*.blg
+out/*.pdf
 rapport/*.pdf
 *.xdv
 
