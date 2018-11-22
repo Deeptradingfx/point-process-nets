@@ -63,7 +63,7 @@ def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
 
 
 def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, sequence: Tensor,
-                   seq_types: Tensor, seq_lengths: Tensor, tmax: float):
+                   seq_types: Tensor, seq_lengths: Tensor, tmax: float, cuda: bool = False):
     """Train the HawkesDecayRNN model on the input data sequence
 
     Args:
@@ -73,6 +73,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, sequence: Tensor
         seq_types: event types
         seq_lengths: sequence length
         optimizer:
+        cuda:
     """
     max_seq_length = seq_lengths[0]
     sequence = sequence[:max_seq_length]
