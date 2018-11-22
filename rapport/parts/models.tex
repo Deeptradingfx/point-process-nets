@@ -5,11 +5,11 @@
 
 Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événements discrets est celle des \textit{processus ponctuels}.
 
-Un processus ponctuel est associé à un processus de comptage $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événement entre deux instants $s$ et $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda_t$ par rapport à une filtration $\mathcal{F}_t$ est définie par
+Un processus ponctuel est associé à un processus de comptage $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ est définie\footnotemark~par
 \[
-	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) = \EE[N_{t+h} - N_t\mid \mathcal{F}_t] = \lambda_th + o(h).
+	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) \underset{h\to 0}{=} \lambda_th + o(h)
 \]
-
+\footnotetext{On remarquera que comme $P(N_{t+h}-N_t > 1\mid \mathcal{F}_t) = o(h)$, on a aussi, en notation synthétique, $\EE[dN_t\mid\mathcal{F}_t] = \lambda_t\,dt$.}
 
 \subsection{Modèle de base: le processus de Hawkes}
 
@@ -44,7 +44,7 @@ On postule que l'intensité est de la forme
 \end{equation}
 où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante du réseau RNN standard, inspiré du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
 
-Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$\footnote{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = (0,1,0)^\intercal$}.
+Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$\footnotemark.
 Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
 \begin{equation}
 h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
@@ -57,15 +57,17 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 	\end{align}
 \end{subequations}
 
+\footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = {(0,1,0)}^\intercal$}
+
 Le réseau s'entraîne en maximisant la log-vraisemblance
 \begin{equation}\label{eq:likelihood}
 	\mathcal{L} = \sum_{i=1}^{I} \log P((t_i,k_i)\mid \mathcal{F}_{t_{i-1}})
 	+ \log P(t_{I+1}>T\mid \mathcal{F}_{t_{I}})
 \end{equation}
-où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t < t_i \}$.
+où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t \leq t_i \}$.
 
-La fonction d'activation $f$ est soit la fonction ReLU $x\mapsto \max(0,x)$, soit une approximation de classe $\mathcal C^1$ et strictement positive sur $\RR$ de ReLU, la fonction <<~Softmax~>>
+La fonction d'activation $f$ est une approximation de classe $\mathcal C^1$ et strictement positive de la fonction ReLU ($x\mapsto \max(x,0)$), la fonction <<~Softmax~>>
 \[
-x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}).
+x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}),\quad\beta > 0.
 \]
 \end{document}

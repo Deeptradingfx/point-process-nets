@@ -2,23 +2,27 @@
 \documentclass[11pt]{article}
 \usepackage[a4paper,hmargin=3.6cm]{geometry}
 \usepackage{subfiles}
+\usepackage{polyglossia}
+\setdefaultlanguage{french}
 
 \usepackage{mathtools}
 \usepackage{amsfonts,amssymb}
 \usepackage{stmaryrd}
 \usepackage{graphicx}
 \usepackage{titlesec}
-\usepackage{hyperref}
+\usepackage[
+	page,title
+]{appendix}
 
 \usepackage{dsfont}
 
-\usepackage{polyglossia}
 \usepackage{csquotes}
 \usepackage[backend=biber,sorting=nyt]{biblatex}
-\setdefaultlanguage{french}
 
-\title{\textbf{Rapport de projet}\\
-  \textit{Processus ponctuels récurrents}
+\usepackage{hyperref}
+
+\title{\textbf{Processus ponctuels récurrents}\\
+	\textit{Rapport de projet}  
 }
 \author{
   Wilson \textsc{Jallet}\\
@@ -31,6 +35,10 @@
 \newcommand{\ZZ}{\mathbb{Z}}
 \newcommand{\PP}{\mathbb{P}}
 \newcommand{\EE}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+
+% \newcommand*{\Appendixautorefname}{annexe}
+\renewcommand{\appendixpagename}{Annexes} 
 
 \bibliography{references.bib}
 
@@ -50,21 +58,39 @@ On cherche à modéliser des flux d'événements discrets, arrivant à des insta
 
 Les réseaux de neurones sont implémentés en utilisant la librairie \textsf{PyTorch} \cite{paszke2017automatic}, permettant de faire du calcul tensoriel avec différentiation automatique (pour calculer les gradients).
 
-La log-vraisemblance d'une suite d'événements $\{(t_i,x_i)\}_i$ est donnée par la formule
-\begin{equation}
-\mathcal{L}\left(\{(t_i,k_i)\}_i)\right)
+La log-vraisemblance d'une suite d'événements $\{(t_i,k_i)\}_i$ est donnée par la formule, démontrée dans \autocite{meiEisnerNeuralHawkes}:
+\begin{equation}\label{eq:explicitLikelihood}
+\mathcal{L}\left(\{(t_i,k_i)\}_i\right)
 =
 \sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
 \end{equation}
+où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
+
+Le second terme est une intégrale. Elle peut être estimée par une méthode de Monte Carlo, comme le suggèrent \citeauthor{meiEisnerNeuralHawkes}. Plus de détails sur l'estimateur utilisé sont donnés dans l'\autoref{sec:algoAppendix}.
 
 
 \printbibliography
 
-\appendix
+\begin{appendices}
+\section{Algorithmes}\label{sec:algoAppendix}
 
-\section{Vraisemblance}
+\subsection*{Calcul de la log-vraisemblance}
 
-On peut démontrer que la log-vraisemblance s'écrit comme dans \eqref{eq:likelihood}.
+La log-vraisemblance donnée par la relation \eqref{eq:explicitLikelihood} comporte deux termes: une somme de logarithmes d'intensités et l'intégrale de l'intensité totale du processus (la somme des intensités de chaque type).
 
+\paragraph{Estimation de l'intégrale} Étant donné un variable aléatoire $\tau\sim\mathcal{U}([0,T])$ indépendante de la filtration $\mathds{F}$, la quantité 
+\[
+\bar{\Lambda} = T\lambda_\tau\cdot\mathbf 1
+\]
+est un estimateur non biaisé de l'intégrale. Mais il pose un problème: il faut savoir à quel intervalle $(t_{i-1}, t_i]$ appartient $\tau$, étant donné que l'expression de $\lambda_t$ est définie par morceaux. En utilisant la relation de Chasles, on peut construire l'estimateur (non biaisé) suivant:
+\begin{equation}
+\hat{\Lambda}^C = \sum_{i=1}^{I} \Delta t_i\lambda_{\tau_i} \cdot \mathbf{1} + (T-t_{I})\lambda_{\tau_{I+1}}\cdot\mathbf{1}
+\approx
+\int_0^T \lambda_t\,dt
+\end{equation}
+où les $\tau_i\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}\in\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de l'intervalle auquel appartient $\tau$ est levé, mais on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
 
+\paragraph{Somme des logarithmes} Le premier terme pose un léger problème au niveau de l'implémentation. Le calcul des intensités $\lambda_{t_i}$ donne un tenseur $I_m\times B\times (K+1)$, avec $B$ la taille du \textit{batch} (le sous-ensemble des exemples d'entraînement qu'on est en train de traiter), $I_m$ la longueur maximale des séquences d'événements du \textit{batch}, et $K+1$ pour les types d'événements.
+
+\end{appendices}
 \end{document}
