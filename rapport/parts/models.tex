@@ -44,7 +44,8 @@ On postule que l'intensité est de la forme
 \end{equation}
 où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante du réseau RNN standard, inspiré du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
 
-Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$\footnotemark.
+Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$, technique qui s'appelle encodage \textit{one-hot}\footnotemark.
+
 Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
 \begin{equation}
 h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
