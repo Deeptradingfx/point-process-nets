@@ -6,7 +6,7 @@ from typing import Tuple, List
 
 class HawkesDecayRNN(nn.Module):
     """
-    Recurrent neural network (RNN) model using decaying hidden states between events.
+    Recurrent neural network (RNN) model using decaying hidden states between events, Decay-RNN.
 
     We denote by :math:`N` the sequence lengths.
 

@@ -37,3 +37,17 @@ def process_loaded_sequences(loaded_hawkes_data: dict):
     # Reorder by descending sequence length
     types_tensor = types_tensor[:, reorder_indices_]
     return times_tensor, types_tensor, seq_lengths
+
+
+def one_hot_embedding(labels, num_classes: int) -> torch.Tensor:
+    """Embedding labels to one-hot form.
+
+    Args:
+        labels: (LongTensor) class labels, sized [N,].
+        num_classes: (int) number of classes.
+
+    Returns:
+        (tensor) encoded labels, sized [N, #classes].
+    """
+    y = torch.eye(num_classes)
+    return y[labels]
