@@ -3,13 +3,23 @@
 
 \begin{document}
 
-Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événements discrets est celle des \textit{processus ponctuels}.
-
 Un processus ponctuel est associé à un processus de comptage $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ est définie\footnotemark~par
 \[
-	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) \underset{h\to 0}{=} \lambda_th + o(h)
+	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) \underset{h\to 0}{=} \lambda_th + o(h).
 \]
 \footnotetext{On remarquera que comme $P(N_{t+h}-N_t > 1\mid \mathcal{F}_t) = o(h)$, on a aussi, en notation synthétique, $\EE[dN_t\mid\mathcal{F}_t] = \lambda_t\,dt$.}
+
+Ainsi, plus l'intensité $\lambda_t$ est élevée, plus la probabilité d'avoir un événement dans l'immédiat est élevée.
+
+On cherche ici à modéliser des \textit{séquences} d'événements ${\{(t_i,k_i)\}}_i$ arrivant à des instants distincts $0<t_1 < \cdots$ et de \textit{type} $k_i$.
+
+Si on se donne un modèle $P = \PP(\,\cdot\,\mid \Theta)$ de la loi de nos séquences d'événements, la probabilité que $I$ événements $t_1<\cdots<t_I$ surviennent entre les instants $0$ et $T > 0$ a une log-vraisemblance
+\begin{equation}\label{eq:likelihood}
+\mathcal{L} = \sum_{i=1}^{I} \log P((t_i,k_i)\mid \mathcal{F}_{t_{i-1}}, t_i)
++ \log P(t_{I+1}>T\mid \mathcal{F}_{t_{I}})
+\end{equation}
+où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t \leq t_i \}$.
+
 
 \subsection{Modèle de base: le processus de Hawkes}
 
@@ -60,12 +70,7 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 
 \footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = {(0,1,0)}^\intercal$}
 
-Le réseau s'entraîne en maximisant la log-vraisemblance
-\begin{equation}\label{eq:likelihood}
-	\mathcal{L} = \sum_{i=1}^{I} \log P((t_i,k_i)\mid \mathcal{F}_{t_{i-1}})
-	+ \log P(t_{I+1}>T\mid \mathcal{F}_{t_{I}})
-\end{equation}
-où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t \leq t_i \}$.
+Le réseau s'entraîne en maximisant la log-vraisemblance \eqref{eq:likelihood}.
 
 La fonction d'activation $f$ est une approximation de classe $\mathcal C^1$ et strictement positive de la fonction ReLU ($x\mapsto \max(x,0)$), la fonction <<~Softmax~>>
 \[
