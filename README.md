@@ -5,6 +5,8 @@ Supervised by [Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
 Synthetic point processes are simulated using [`tick`](https://github.com/X-DataInitiative/tick)
 and [`point-process-rust`](https://github.com/ManifoldFR/point-process-rust).
 
+Neural networks are written using [PyTorch](https://pytorch.org).
+
 ## Objective
 
 Use a modified neural network-based Hawkes process model for next event prediction in a time series.
@@ -27,6 +29,9 @@ If the model state dict was saved with `torch.save(model.state_dict(), PATH)`
 
 
 ```python
+import torch
+from models import ModelClass
+
 model = ModelClass(*args, **kwargs)
 model.load_state_dict(torch.load(PATH))
 model.eval() # Evaluation mode
