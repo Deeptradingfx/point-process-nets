@@ -75,8 +75,8 @@ class HawkesDecayRNN(nn.Module):
         Returns:
             Shape: batch * hidden_size, batch * 1
         """
-        return (torch.zeros(batch_size, self.hidden_size, requires_grad=True),
-                torch.zeros(batch_size, 1, requires_grad=True))
+        return (torch.zeros(batch_size, self.hidden_size),
+                torch.zeros(batch_size, 1))
 
     def compute_intensity(self, hidden: Tensor, decay: Tensor, s: Tensor, t: Tensor) -> Tensor:
         """
@@ -152,60 +152,62 @@ class HawkesDecayRNN(nn.Module):
         res = (- first_term + second_term).mean()
         return res
 
-    def generate_sequence(self, tmax: float):
-        """
-        Generate an event sequence on the interval [0, tmax].
 
-        Args:
-            tmax: time horizon
+def generate_sequence(model: HawkesDecayRNN, tmax: float):
+    """
+    Generate an event sequence on the interval [0, tmax].
 
-        Returns:
-            Sequence of event times with corresponding event intensities.
-        """
-        with torch.no_grad():
-            s = torch.zeros(1)
-            last_t = 0.
-            hidden, decay = self.initialize_hidden()
-            event_times = [last_t]  # record sequence start event
-            event_types = [self.input_size]  # sequence start event is of type K
-            hidd_hist = []
-            decay_hist = []
-            max_lbda = self.intensity_activ(
-                self.intensity_layer(hidden)).sum(dim=1, keepdim=True)
-            # import pdb; pdb.set_trace()
+    Args:
+        model: instance of Decay-RNN model
+        tmax: time horizon
 
-            while last_t < tmax:
-                u1: Tensor = torch.rand(1)
-                # Candidate inter-arrival time the aggregated process
-                ds: Tensor = -1./max_lbda*u1.log()
-                # candidate future arrival time
-                s = s.clone() + ds
-                # adaptive sampling: always update the hidden state
-                hidden = hidden*torch.exp(-decay*ds)
-                intens_candidate = self.intensity_activ(
-                    self.intensity_layer(hidden))
-                total_intens: Tensor = torch.sum(intens_candidate, dim=1, keepdim=True)
-                # rejection sampling
-                u2: Tensor = torch.rand(1)
-                if u2 <= total_intens/max_lbda:
-                    # shape 1 * (K+1)
-                    # probability distribution for the types
-                    weights: Tensor = intens_candidate/total_intens  # ratios of types intensities to aggregate
-                    res = torch.multinomial(weights, 1)
-                    k = res.item()
-                    if k < self.input_size:
-                        # accept
-                        x = one_hot_embedding(res[0], self.input_size)
-                        concat = torch.cat((x, hidden), dim=1)
-                        decay = self.decay_activ(self.decay_layer(concat))
-                        hidden = self.rnn_layer(x, hidden)
-                        hidd_hist.append(hidden)
-                        decay_hist.append(decay)
-                        last_t = s.item()
-                        event_times.append(last_t)
-                        event_types.append(k)
-                max_lbda = total_intens.clone()
-            event_times = Tensor(event_times).squeeze(0)
-            event_types = Tensor(event_types).squeeze(0)
-            decay_hist = torch.stack(decay_hist, dim=2).squeeze(0).squeeze(0)
-            return event_times, hidd_hist, decay_hist
+    Returns:
+        Sequence of event times with corresponding event intensities.
+    """
+    with torch.no_grad():
+        s = torch.zeros(1)
+        last_t = 0.
+        hidden, decay = model.initialize_hidden()
+        event_times = [last_t]  # record sequence start event
+        event_types = [model.input_size-1]  # sequence start event is of type K
+        hidd_hist = []
+        decay_hist = []
+        max_lbda = model.intensity_activ(
+            model.intensity_layer(hidden)).sum(dim=1, keepdim=True)
+        # import pdb; pdb.set_trace()
+
+        while last_t < tmax:
+            u1: Tensor = torch.rand(1)
+            # Candidate inter-arrival time the aggregated process
+            ds: Tensor = -1./max_lbda*u1.log()
+            # candidate future arrival time
+            s = s.clone() + ds
+            # adaptive sampling: always update the hidden state
+            hidden = hidden*torch.exp(-decay*ds)
+            intens_candidate = model.intensity_activ(
+                model.intensity_layer(hidden))
+            total_intens: Tensor = torch.sum(intens_candidate, dim=1, keepdim=True)
+            # rejection sampling
+            u2: Tensor = torch.rand(1)
+            if u2 <= total_intens/max_lbda:
+                # shape 1 * (K+1)
+                # probability distribution for the types
+                weights: Tensor = intens_candidate/total_intens  # ratios of types intensities to aggregate
+                res = torch.multinomial(weights, 1)
+                k = res.item()
+                if k < model.input_size:
+                    # accept
+                    x = one_hot_embedding(res[0], model.input_size)
+                    concat = torch.cat((x, hidden), dim=1)
+                    decay = model.decay_activ(model.decay_layer(concat))
+                    hidden = model.rnn_layer(x, hidden)
+                    hidd_hist.append(hidden)
+                    decay_hist.append(decay)
+                    last_t = s.item()
+                    event_times.append(last_t)
+                    event_types.append(k)
+            max_lbda = total_intens.clone()
+        event_times = Tensor(event_times).squeeze(0)
+        event_types = Tensor(event_types).squeeze(0)
+        decay_hist = torch.stack(decay_hist, dim=2).squeeze(0).squeeze(0)
+        return event_times, event_types, hidd_hist, decay_hist

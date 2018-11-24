@@ -1,12 +1,16 @@
 import torch
 from torch import Tensor
 from torch import nn
+import tqdm
+import numpy as np
+import sys
 from torch.optim import Optimizer
 from models.ctlstm import NeuralCTLSTM
 from models.decayrnn import HawkesDecayRNN
+from typing import List
 
 
-def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
+def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: Optimizer,
                         event_times, sequence_length, input_size, tmax: float):
     """Train the Neural Hawkes CTLSTM on input sequence
 
@@ -62,55 +66,77 @@ def train_neural_ctlstm(nhlstm: NeuralCTLSTM, optimizer: torch.optim.Optimizer,
     return loss, hist_dict
 
 
-def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, sequence: Tensor,
-                   seq_types: Tensor, seq_lengths: Tensor, tmax: float, cuda: bool = False):
-    """Train the HawkesDecayRNN model on the input data sequence
+def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tensor, seq_types: Tensor,
+                   seq_lengths: Tensor, tmax: float, batch_size: int, epochs: int,
+                   use_jupyter: bool = False) -> List[float]:
+    """
+    Train the HawkesDecayRNN model.
 
     Args:
+        seq_times: event sequence samples
+        seq_types: event types of the event sequence
+        seq_lengths: lengths of the sequence in the sample
+        batch_size:
         model: recurrent neural net model
-        tmax:
-        sequence: input event sequence
-        seq_types: event types
-        seq_lengths: sequence length
+        epochs:
         optimizer:
-        cuda:
+        tmax:
+        use_jupyter: use tqdm's Jupyter mode
     """
-    max_seq_length = seq_lengths[0]
-    sequence = sequence[:max_seq_length]
-    seq_types = seq_types[:max_seq_length]
-    # Embed the sequence into the event arrival intervals
-    sequence = torch.cat((torch.zeros_like(sequence[:1]), sequence))
-    dt_sequence = sequence[1:] - sequence[:-1]
-    # Trim the sequence to its real length
-    packed_times = nn.utils.rnn.pack_padded_sequence(dt_sequence, seq_lengths)
-    # packed_types = nn.utils.rnn.pack_padded_sequence(seq_types, seq_lengths)
-    # Reshape to a format the RNN can understand
-    # N * batch
-    max_batch_size = packed_times.batch_sizes[0]
-    # Data records
-    # hidd_decayed: 0
-    # decay: 0
-    hidd_decayed, decay = model.initialize_hidden(max_batch_size)
-    hiddens = []
-    decays = []
-    for i in range(max_seq_length):
-        # event t_i is happening
-        batch_size = packed_times.batch_sizes[i]
-        # hidden state just before this event
-        hidd_decayed = hidd_decayed[:batch_size]
-        # time until next event t_{i+1}
-        dt_batch = dt_sequence[i, :batch_size]
-        types_batch = seq_types[i, :batch_size]
-        hidd, decay, hidd_decayed = model(dt_batch, types_batch, hidd_decayed)
-        hiddens.append(hidd)
-        decays.append(decay)
-    train_data = {
-        "hidden": hiddens,
-        "decay": decays
-    }
-    loss: Tensor = model.compute_loss(sequence.unsqueeze(2), seq_types,
-                                      packed_times.batch_sizes, hiddens, decays, tmax)
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()  # zero the gradients
-    return train_data, loss.item()
+    print("Batch size {}".format(batch_size))
+    print("Number of epochs {}".format(epochs))
+    train_size = seq_times.size(1)
+    loss_hist = []
+    for e in range(1, epochs + 1):
+        # Epoch loop
+        epoch_loss = []
+        if use_jupyter:
+            tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
+                                         file=sys.stdout, desc="Epoch %d" % e)
+        else:
+            tr_loop_range = tqdm.trange(0, train_size, batch_size,
+                                        file=sys.stdout, desc="Epoch %d" % e)
+        for i in tr_loop_range:
+            optimizer.zero_grad()
+            sub_seq_lengths = seq_lengths[i:(i + batch_size)]
+            max_seq_length = sub_seq_lengths[0]
+            sequence = seq_times[:max_seq_length, i:(i + batch_size)]
+            sub_seq_types = seq_types[:max_seq_length, i:(i + batch_size)]
+            # Inter-event time intervals
+            sequence = torch.cat((torch.zeros_like(sequence[:1]), sequence))
+            dt_sequence = sequence[1:] - sequence[:-1]
+            # Trim the sequence to its real length
+            packed_times = nn.utils.rnn.pack_padded_sequence(dt_sequence, sub_seq_lengths)
+            # packed_types = nn.utils.rnn.pack_padded_sequence(sub_seq_types, sub_seq_lengths)
+            # Reshape to a format the RNN can understand
+            # N * batch
+            max_batch_size = packed_times.batch_sizes[0]
+            # Data records
+            # hidd_decayed: 0
+            # decay: 0
+            hidd_decayed, decay = model.initialize_hidden(max_batch_size)
+            hiddens = []
+            decays = []
+            for j in range(max_seq_length):
+                # event t_i is happening
+                sub_batch_size = packed_times.batch_sizes[j]
+                # hidden state just before this event
+                hidd_decayed = hidd_decayed[:sub_batch_size]
+                # time until next event t_{i+1}
+                dt_batch = dt_sequence[j, :sub_batch_size]
+                types_batch = sub_seq_types[j, :sub_batch_size]
+                hidd, decay, hidd_decayed = model(dt_batch, types_batch, hidd_decayed)
+                hiddens.append(hidd)
+                decays.append(decay)
+            train_data = {
+                "hidden": hiddens,
+                "decay": decays
+            }
+            loss: Tensor = model.compute_loss(sequence.unsqueeze(2), sub_seq_types,
+                                              packed_times.batch_sizes, hiddens, decays, tmax)
+            loss.backward()
+            optimizer.step()
+            epoch_loss.append(loss.item())
+        epoch_loss_mean: float = np.mean(epoch_loss)
+        loss_hist.append(epoch_loss_mean)  # append the final loss of each epoch
+    return loss_hist
