@@ -102,10 +102,12 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             optimizer.zero_grad()
             sub_seq_lengths = seq_lengths[i:(i + batch_size)]
             max_seq_length = sub_seq_lengths[0]
-            sequence = seq_times[:max_seq_length, i:(i + batch_size)]
-            sub_seq_types = seq_types[:max_seq_length, i:(i + batch_size)]
+            sub_seq_times = seq_times[:max_seq_length+1, i:(i + batch_size)]
+            sub_seq_types = seq_types[:max_seq_length+1, i:(i + batch_size)]
             # Inter-event time intervals
-            dt_sequence = sequence[1:] - sequence[:-1]
+            dt_sequence = sub_seq_times[1:] - sub_seq_times[:-1]
+            # print("max seq. lengths: {}".format(max_seq_length))
+            # print("dt shape: {}".format(dt_sequence.shape))
             # Trim the sequence to its real length
             packed_times = nn.utils.rnn.pack_padded_sequence(dt_sequence, sub_seq_lengths)
             # packed_types = nn.utils.rnn.pack_padded_sequence(sub_seq_types, sub_seq_lengths)
@@ -129,11 +131,9 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
                 hidd, decay, hidd_decayed = model(dt_batch, types_batch, hidd_decayed)
                 hiddens.append(hidd)
                 decays.append(decay)
-            train_data = {
-                "hidden": hiddens,
-                "decay": decays
-            }
-            loss: Tensor = model.compute_loss(sequence.unsqueeze(2), sub_seq_types,
+            train_data = {"hidden": hiddens,
+                          "decay": decays}
+            loss: Tensor = model.compute_loss(sub_seq_times.unsqueeze(2), sub_seq_types,
                                               packed_times.batch_sizes, hiddens, decays, tmax)
             loss.backward()
             optimizer.step()

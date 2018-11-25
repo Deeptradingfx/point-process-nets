@@ -22,15 +22,16 @@ def process_loaded_sequences(loaded_hawkes_data: dict):
     event_times_list = [torch.from_numpy(e) for e in event_times_list]
     event_types_list = [torch.from_numpy(e) for e in event_types_list]
 
+    # Build a types data tensor by padding
+    process_dim = max(e.max() for e in event_types_list)
+
     # Build a data tensor by padding
     times_tensor = nn.utils.rnn.pad_sequence(event_times_list).float()
     times_tensor = torch.cat((torch.zeros_like(times_tensor[:1, :]), times_tensor))
     # Reorder by descending sequence length
     times_tensor = times_tensor[:, reorder_indices_]
 
-    # Build a types data tensor by padding
-    types_tensor = nn.utils.rnn.pad_sequence(event_types_list)
-    process_dim = types_tensor.max()
+    types_tensor = nn.utils.rnn.pad_sequence(event_types_list, padding_value=process_dim+1)
     # K is the Beginning-of-sequence event now; shift all other event types
     types_tensor = torch.cat(
         ((process_dim + 1) * torch.ones_like(types_tensor[:1, :]), types_tensor))

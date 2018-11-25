@@ -65,8 +65,7 @@ class HawkesDecayRNN(nn.Module):
         # New hidden state h(t_i+)
         hidden = self.rnn_layer(seq_types, hidden_ti)  # shape batch * hidden_size
         # decay the new hidden state to its value h(t_{i+1})
-        dt = dt.unsqueeze(1)
-        hidden_after_decay = hidden * torch.exp(-decay * dt)  # shape batch * hidden_size
+        hidden_after_decay = hidden * torch.exp(-decay * dt[:, None])  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
 
     def initialize_hidden(self, batch_size: int = 1) -> Tuple[Tensor, Tensor]:
@@ -99,14 +98,18 @@ class HawkesDecayRNN(nn.Module):
     def compute_loss(self, sequence: Tensor, seq_types: Tensor, batch_sizes: Tensor,
                      hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
-        Negative log-likelihood.
+        Negative log-likelihood
 
-        Number of intervals for the process, counting [0, t_1) and (t_N, tmax): N + 1
+        .. math::
+            \mathcal{L} = \log P(\{(t_i, k_i)\}_i)
+
+        There are :math:`N+1` inter-event intervals for the process,
+        counting :math:`[0, t_1)` and :math:`(t_N, tmax)`.
 
         Args:
             sequence: event sequence, including start time 0
                 Shape: (N + 1) * batch
-            seq_types: event types
+            seq_types: event types, one-hot encoded
                 Shape: N * batch * (K + 1)
             batch_sizes: batch sizes for each event sequence tensor, by length
             hiddens:
@@ -130,7 +133,7 @@ class HawkesDecayRNN(nn.Module):
         # import pdb; pdb.set_trace()
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intensity_ev_times_filtered = intensity_ev_times*seq_types.float()
+        intensity_ev_times_filtered = intensity_ev_times*seq_types[:-1]
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on sequence dim.
         # shape (batch_size,)
@@ -237,27 +240,31 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
     hidden_t, decay = model.initialize_hidden()
     hidden = hidden_t.clone()
     dt_seq = event_seq_times[1:] - event_seq_times[:-1]
-    print("Sequence length: {}".format(seq_length))
-    print(event_seq_times.shape)
-    print(event_seq_types.shape)
+    print("Sequence length: {} => last index = {}".format(seq_length, seq_length-1))
+    print("\tevent_seq_times shape: {}".format(event_seq_times.shape))
+    print("\tevent_seq_types shape: {}".format(event_seq_types.shape))
+    print("\tdt_seq shape: {}".format(dt_seq.shape))
     assert seq_length == dt_seq.shape[0]
     # Read event sequence
     for i in range(seq_length):
         hidden, decay, hidden_t = model.forward(dt_seq[i], event_seq_types[i], hidden_t)
-    print("Last evt index: {}".format(i))
     # We read the types of all events up until this one
-    last_ev_time = event_seq_times[i]  # call it tN
-    print("last read evnt time: {}".format(last_ev_time))
-    print("next evnt time: {}".format(last_ev_time+dt_seq[i]))
-    print("or {}".format(event_seq_times[-1]))
+    last_ev_time = event_seq_times[-2]  # last read event time
     type_real = event_seq_types[-1]  # real next event's type
+    print("Last read event time: {} of type {}"
+          .format(last_ev_time, event_seq_types[-2].argmax()))
     ds = dt_seq[-1]  # time until next event
-    hidden_t = hidden*torch.exp(-decay*ds)
-    # event intensities at tN, just before event occurs
-    intensities = model.intensity_activ(model.intensity_layer(hidden_t))
-    # probability distribution of all possible evt types at tN
-    prob_distrib = intensities/intensities.sum()
-    print(prob_distrib)
-    k_predict = torch.multinomial(prob_distrib, 1)  # event type prediction
-    type_predict = one_hot_embedding(k_predict, model.input_size)
+    print("Next event time: {} in {} secs".format(event_seq_times[-1], ds))
+    with torch.no_grad():
+        # event intensities at tN, just before event occurs
+        intensities = model.intensity_activ(model.intensity_layer(hidden_t))
+        # probability distribution of all possible evt types at tN
+        prob_distrib = intensities/intensities.sum()
+        print(prob_distrib)
+        k_type_predict = torch.multinomial(prob_distrib, 1)  # event type prediction
+        type_predict = one_hot_embedding(k_type_predict, model.input_size)
+    # import pdb; pdb.set_trace()
+    k_type_real = torch.argmax(type_real)
+    print("Actual type: {}".format(k_type_real))
+    print("Predicted type: {}".format(k_type_predict.item()))
     return type_real, type_predict
