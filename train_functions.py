@@ -96,6 +96,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         else:
             tr_loop_range = tqdm.trange(0, train_size, batch_size,
                                         file=sys.stdout, desc="Epoch %d" % e)
+        # Full pass through the dataset
         for i in tr_loop_range:
             optimizer.zero_grad()
             sub_seq_lengths = seq_lengths[i:(i + batch_size)]
