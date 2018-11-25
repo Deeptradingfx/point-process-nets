@@ -256,7 +256,7 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
         intensities = model.intensity_activ(model.intensity_layer(hidden))
         # probability distribution of all possible evt types at tN
         prob_distrib = intensities/intensities.sum()
-        k_type_predict = torch.multinomial(prob_distrib, 1)  # event type prediction
+        k_type_predict = torch.multinomial(prob_distrib, 1)[0]  # event type prediction
         type_predict = one_hot_embedding(k_type_predict, model.input_size)
     # import pdb; pdb.set_trace()
     k_type_real = torch.argmax(type_real)
