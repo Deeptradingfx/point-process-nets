@@ -211,3 +211,53 @@ def generate_sequence(model: HawkesDecayRNN, tmax: float):
         event_types = Tensor(event_types).squeeze(0)
         decay_hist = torch.stack(decay_hist, dim=2).squeeze(0).squeeze(0)
         return event_times, event_types, hidd_hist, decay_hist
+
+
+def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
+                 event_seq_types: Tensor, seq_length: Tensor) -> Tuple[Tensor, Tensor]:
+    """
+    Reads an event sequence and predicts the next event time and type.
+
+    Args:
+        model: Decay-RNN model instance
+        event_seq_times: event sequence arrival times (with 0)
+        event_seq_types: event types (one-hot encoded)
+        seq_length: event sequence length
+
+    Returns:
+
+    """
+    ndim = event_seq_times.ndimension()
+    if ndim < 2:
+        event_seq_times = event_seq_times.unsqueeze(1)
+        event_seq_types = event_seq_types.unsqueeze(1)
+    event_seq_times = event_seq_times[:seq_length+1]
+    event_seq_types = event_seq_types[:seq_length+1]
+    model.eval()
+    hidden_t, decay = model.initialize_hidden()
+    hidden = hidden_t.clone()
+    dt_seq = event_seq_times[1:] - event_seq_times[:-1]
+    print("Sequence length: {}".format(seq_length))
+    print(event_seq_times.shape)
+    print(event_seq_types.shape)
+    assert seq_length == dt_seq.shape[0]
+    # Read event sequence
+    for i in range(seq_length):
+        hidden, decay, hidden_t = model.forward(dt_seq[i], event_seq_types[i], hidden_t)
+    print("Last evt index: {}".format(i))
+    # We read the types of all events up until this one
+    last_ev_time = event_seq_times[i]  # call it tN
+    print("last read evnt time: {}".format(last_ev_time))
+    print("next evnt time: {}".format(last_ev_time+dt_seq[i]))
+    print("or {}".format(event_seq_times[-1]))
+    type_real = event_seq_types[-1]  # real next event's type
+    ds = dt_seq[-1]  # time until next event
+    hidden_t = hidden*torch.exp(-decay*ds)
+    # event intensities at tN, just before event occurs
+    intensities = model.intensity_activ(model.intensity_layer(hidden_t))
+    # probability distribution of all possible evt types at tN
+    prob_distrib = intensities/intensities.sum()
+    print(prob_distrib)
+    k_predict = torch.multinomial(prob_distrib, 1)  # event type prediction
+    type_predict = one_hot_embedding(k_predict, model.input_size)
+    return type_real, type_predict

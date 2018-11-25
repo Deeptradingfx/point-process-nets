@@ -83,6 +83,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         tmax:
         use_jupyter: use tqdm's Jupyter mode
     """
+    model.train()  # ensure model is in training mode
     print("Batch size {}".format(batch_size))
     print("Number of epochs {}".format(epochs))
     train_size = seq_times.size(1)
@@ -104,7 +105,6 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             sequence = seq_times[:max_seq_length, i:(i + batch_size)]
             sub_seq_types = seq_types[:max_seq_length, i:(i + batch_size)]
             # Inter-event time intervals
-            sequence = torch.cat((torch.zeros_like(sequence[:1]), sequence))
             dt_sequence = sequence[1:] - sequence[:-1]
             # Trim the sequence to its real length
             packed_times = nn.utils.rnn.pack_padded_sequence(dt_sequence, sub_seq_lengths)
