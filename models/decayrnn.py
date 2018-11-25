@@ -217,7 +217,7 @@ def generate_sequence(model: HawkesDecayRNN, tmax: float):
 
 
 def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
-                 event_seq_types: Tensor, seq_length: Tensor) -> Tuple[Tensor, Tensor]:
+                 event_seq_types: Tensor, seq_length: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Reads an event sequence and predicts the next event time and type.
 
@@ -240,10 +240,7 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
     hidden_t, decay = model.initialize_hidden()
     hidden = hidden_t.clone()
     dt_seq = event_seq_times[1:] - event_seq_times[:-1]
-    print("Sequence length: {} => last index = {}".format(seq_length, seq_length-1))
-    print("\tevent_seq_times shape: {}".format(event_seq_times.shape))
-    print("\tevent_seq_types shape: {}".format(event_seq_types.shape))
-    print("\tdt_seq shape: {}".format(dt_seq.shape))
+    print("Sequence length: {}".format(seq_length))
     assert seq_length == dt_seq.shape[0]
     # Read event sequence
     for i in range(seq_length):
@@ -256,15 +253,13 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
     ds = dt_seq[-1]  # time until next event
     print("Next event time: {} in {} secs".format(event_seq_times[-1], ds))
     with torch.no_grad():
-        # event intensities at tN, just before event occurs
-        intensities = model.intensity_activ(model.intensity_layer(hidden_t))
+        intensities = model.intensity_activ(model.intensity_layer(hidden))
         # probability distribution of all possible evt types at tN
         prob_distrib = intensities/intensities.sum()
-        print(prob_distrib)
         k_type_predict = torch.multinomial(prob_distrib, 1)  # event type prediction
         type_predict = one_hot_embedding(k_type_predict, model.input_size)
     # import pdb; pdb.set_trace()
     k_type_real = torch.argmax(type_real)
     print("Actual type: {}".format(k_type_real))
     print("Predicted type: {}".format(k_type_predict.item()))
-    return type_real, type_predict
+    return type_real, type_predict, prob_distrib
