@@ -1,3 +1,37 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8a53e8631b794e779d91072f3667b1ed89e6950f7cc6fcf4b3948d18f7a0775c
-size 385
+.idea
+.vscode
+
+# LaTeX stuff
+__*.tex
+*.fdb_latexmk
+*.synctex.gz
+*.fls
+*.log
+*.aux
+*.out
+*.run.xml
+*.bbl
+*.bcf
+*.blg
+out/*.pdf
+rapport/*.pdf
+*.xdv
+
+!biblio/*.pdf
+
+$.DS_Store
+
+# Python
+__pycache__
+**/*/__pycache__
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data
+# Ignore the subfolders
+data/dax-euro/**/*
+data/german_equity/**/*
+# Keep the READMEs
+!data/dax-euro/README
+!data/german_equity/README

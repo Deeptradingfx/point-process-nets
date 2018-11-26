@@ -1,3 +1,31 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6e1c90869ec113ada480cea0a2701ac01713c5228cb65a2052fb73dc1b5aba74
-size 1168
+NOTES ON NEURAWKES
+
+In the neurawkes repository the CTLSTM model N-SM-MPP is
+in modules/models, named NeuralHawkesCTLSTM
+controlled in controllers.py by class
+ControlNeuralHawkesAdaptiveBaseCTSM_time (line 315)
+
+CTLSTM loss function is called in controllers.py on line 399
+key in model settings variable is `conttime`
+
+
+dim_process = dim_model (used interchangeably)
+
+model type CLI argument is --Model
+CTLSTM value -> 'conttime'
+
+in train_models.py:
+conttime -> flag_3, flag_show_2, flag_multiple_2 in train_models.py
+    -> calls run_models.train_generalized_neural_hawkes_ctsm_time (tag_neural_type = 'adaptive')
+    -> tag_neural_type ensures controller ControlNeuralHawkesAdaptiveBaseCTSM_time is used on line 1293
+
+in test_models_and_save.py:
+conttime -> calls test_generalized_neural_hawkes_ctsm_and_save_time (tag_neural_type = 'adaptive')
+
+models are run in run_models.py, controller ControlNeuralHawkesAdaptiveBaseCTSM_time
+is called by
+test_intensity_and_save (def line 470)
+train_generalized_neural_hawkes_ctsm_time (def line 1167)
+test_generalized_neural_hawkes_ctsm_and_save_time (def line 1967) on line 2064
+
+CTLSTM on line 741 in sequence_generators.py
