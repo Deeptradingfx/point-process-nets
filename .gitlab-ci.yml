@@ -1,11 +1,3 @@
-image: registry.binets.fr/br/docker-ubuntu-polytechique-latex:latest
-
-build:rapport:
-  when: manual
-  script:
-    - cd rapport/
-    - xelatex main.tex
-  artifacts:
-    paths:
-    - rapport/main.pdf
-    expire_in: 1 week
+version https://git-lfs.github.com/spec/v1
+oid sha256:a0f619cca1d7efd3375f316331dafc7cc2377e07e56ca2d6ed2dc5fcde9756fe
+size 220
