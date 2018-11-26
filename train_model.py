@@ -1,7 +1,7 @@
 import torch
 from torch import nn, optim
 import os, sys, glob
-import tqdm
+import argparse
 from load_synth_data import process_loaded_sequences, one_hot_embedding
 from models.decayrnn import HawkesDecayRNN
 from train_functions import train_decayrnn
@@ -9,6 +9,15 @@ from train_functions import train_decayrnn
 
 SEED = 52
 torch.manual_seed(SEED)
+
+parser = argparse.ArgumentParser(description="Train the model.")
+parser.add_argument('--epochs', type=int, required=True,
+                    help='Number of epochs.')
+parser.add_argument('--batch', type=int,
+                    dest='batch_size', default=32,
+                    help='Batch size.')
+
+args = parser.parse_args()
 
 SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
 print("Available files:")
@@ -48,8 +57,8 @@ train_onehot_types = onehot_types[:, :train_size]
 train_seq_lengths = seq_lengths[:train_size]
 
 # Training parameters
-BATCH_SIZE = 32
-EPOCHS = 30
+BATCH_SIZE = args.batch_size
+EPOCHS = args.epochs
 
 loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_types, train_seq_lengths,
                            tmax, BATCH_SIZE, EPOCHS, use_jupyter=False)
