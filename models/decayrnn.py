@@ -245,7 +245,7 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
     assert seq_length == dt_seq.shape[0]
     # Read event sequence
     for i in range(seq_length):
-        hidden, decay, hidden_t = model.forward(dt_seq[i], event_seq_types[i], hidden_t)
+        hidden, decay, hidden_t = model(dt_seq[i], event_seq_types[i], hidden_t)
     # We read the types of all events up until this one
     last_ev_time = event_seq_times[-2]  # last read event time
     type_real = event_seq_types[-1]  # real next event's type

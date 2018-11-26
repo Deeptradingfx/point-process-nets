@@ -5,11 +5,9 @@ Neural network models for point processes.
 """
 import numpy as np
 import torch
-import typing
+from torch import Tensor
 from torch import nn
-import pdb
-
-device = torch.device('cpu')
+from typing import Tuple, List
 
 
 class NeuralCTLSTM(nn.Module):
@@ -18,24 +16,48 @@ class NeuralCTLSTM(nn.Module):
     https://arxiv.org/abs/1612.09328
     """
 
-    def __init__(self, hidden_dim: int):
+    def __init__(self, input_size: int, hidden_dim: int):
         super(NeuralCTLSTM, self).__init__()
+        input_size += 1
+        self.input_size = input_size
         self.hidden_dim = hidden_dim
-        self.input_g = nn.Linear(hidden_dim, hidden_dim)
-        self.forget_g = nn.Linear(hidden_dim, hidden_dim)
-        self.output_g = nn.Linear(hidden_dim, hidden_dim)
-        self.input_target = nn.Linear(hidden_dim, hidden_dim)
-        self.forget_target = nn.Linear(hidden_dim, hidden_dim)
+        self.input_g = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Sigmoid()
+        )
+        self.forget_g = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Sigmoid()
+        )
+        self.output_g = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Sigmoid()
+        )
+        self.input_target = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Sigmoid()
+        )
+        self.forget_target = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Sigmoid()
+        )
         # activation will be tanh
-        self.z_gate = nn.Linear(hidden_dim, hidden_dim)
+        self.z_gate = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Tanh()
+        )
         # Cell decay factor, identical for all hidden dims
-        self.decay_gate = nn.Linear(hidden_dim, 1)
-        self.decay_act = nn.Softplus(beta=8.)
+        self.decay_layer = nn.Sequential(
+            nn.Linear(input_size + hidden_dim, 1),
+            nn.Softplus(beta=8.)
+        )
         # activation for the intensity
-        self.w_alpha = nn.Linear(hidden_dim, 1, bias=False) # no bias in the model
-        self.activation = nn.Softplus(beta=5.)
+        self.activation = nn.Sequential(
+            nn.Linear(hidden_dim, 1, bias=False),  # no bias in the model
+            nn.Softplus(beta=5.)
+        )
 
-    def init_hidden(self):
+    def init_hidden(self, batch_size: int = 1):
         """
         Initialize the hidden state, the cell state and cell state target.
         The first dimension is the batch size.
@@ -43,23 +65,25 @@ class NeuralCTLSTM(nn.Module):
         Returns:
             (hidden, cell_state, cell_target)
         """
-        return (torch.zeros(1, self.hidden_dim, device=device),
-                torch.zeros(1, self.hidden_dim, device=device),
-                torch.zeros(1, self.hidden_dim, device=device))
+        return (torch.zeros(batch_size, self.hidden_dim),
+                torch.zeros(batch_size, self.hidden_dim),
+                torch.zeros(batch_size, self.hidden_dim))
 
-    def forward(self, dt, hidden_ti, cell_i, c_target_i):
+    def forward(self, dt: Tensor, seq_types: Tensor, hidden_ti, cell_ti, cell_target):
         """
-        Forward pass for the CT-LSTM.
+        Forward pass of the CT-LSTM network.
 
-        The input states are given by at time :math:`t_{i-1}` before update.
-
-        Computes the hidden states on interval :math:`(t_{i-1},t_i]`.
+        Computes the network parameters for the next interval :math:`(t_i,t_{i+1}]` from the input states given by
+        at time :math:`t_{i}`, right before the update.
 
         Args:
             dt: time until next event
-            hidden_ti: prev. hidden state
-            cell_i: prev. cell state, decayed since last event
-            c_target_i: prev. cell state target
+                Shape: batch
+            seq_types: one-hot encoded event sequence types
+                Shape: batch * input_size
+            hidden_ti: prev. hidden state, decayed since last event
+            cell_ti: prev. cell state, decayed since last event
+            cell_target: prev. cell state target
 
         Returns:
             output: result of the output gate
@@ -67,45 +91,45 @@ class NeuralCTLSTM(nn.Module):
             cell_ti: cell state
             c_t_actual: decayed cell state
             c_target_i: cell target
-            decay_i: decay parameter on the interval :math:`(t_{i-1},t_i]`
-        TODO event type embedding
+            decay_i: decay
         """
-        # TODO concatenate event embedding with h_t
-        v = torch.cat((hidden_ti,))
-        inpt = torch.sigmoid(self.input_g(v))
-        forget = torch.sigmoid(self.forget_g(v))
-        output = torch.sigmoid(self.output_g(v))
-        input_target = torch.sigmoid(self.input_target(v))
-        forget_target = torch.sigmoid(self.forget_target(v))
+        v = torch.cat((seq_types, hidden_ti), dim=1)
+        inpt = self.input_g(v)
+        forget = self.forget_g(v)
+        input_target = self.input_target(v)
+        forget_target = self.forget_target(v)
+        output = self.output_g(v)
         # Not-quite-c
-        z_i = torch.tanh(self.z_gate(v))
+        z_i = self.z_gate(v)
         # Compute the decay parameter
-        decay_i = self.decay_act(self.decay_gate(v))
+        decay_i = self.decay_layer(v)
         # Update the cell state to c(t_i+)
-        cell_i = forget * cell_i + inpt * z_i
+        cell_i = forget * cell_ti + inpt * z_i
         # Update the cell state target
-        c_target_i = forget_target * c_target_i + input_target * z_i
+        cell_target = forget_target * cell_target + input_target * z_i
         # Decay the cell state to its value before the known next event at t+dt
         c_t_actual = (
-                c_target_i + (cell_i - c_target_i) *
-                torch.exp(-decay_i*dt)
+                cell_target + (cell_i - cell_target) *
+                torch.exp(-decay_i * dt[:, None])
         )
-        # h_t_actual = output * torch.tanh(c_t_actual)
-        hidden_ti = output * torch.tanh(cell_i)
+        hidden_i = output * torch.tanh(cell_i)
+        h_t_actual = output * torch.tanh(c_t_actual)  # h(ti)
         # Return our new states for the next pass to use
-        return output, hidden_ti, cell_i, c_t_actual, c_target_i, decay_i
+        return output, hidden_i, h_t_actual, cell_i, c_t_actual, cell_target, decay_i
 
-    def compute_intensity(self, dt: torch.Tensor, output: torch.Tensor,
-                          cell_ti, c_target_i, decay) -> torch.Tensor:
+    def compute_intensity(self, dt: Tensor, output: Tensor,
+                          cell_ti, c_target_i, decay) -> Tensor:
         """
         Compute the intensity function.
 
         Args:
-            dt: time increments array
+            dt: time increments
                 dt[i] is the time elapsed since event t_i
                 if you want to compute at time s,
                 :math:`t_i <= t <= t_{i+1}`, then `dt[i] = t - t_i`.
-            output: NN output o_i
+                Shape: seq_length * batch
+            output: LSTM cell output
+                Shape: seq_length * batch * hidden_dim
             cell_ti: previous cell state
             c_target_i: previous cell target
             decay: decay[i] is the degrowth param. on range [t_i, t_{i+1}]
@@ -122,11 +146,10 @@ class NeuralCTLSTM(nn.Module):
         )
         # Compute hidden state
         h_t = output * torch.tanh(c_t_after)
-        pre_lambda = self.w_alpha(h_t)
-        return self.activation(pre_lambda)
+        return self.activation(h_t)
 
-    def likelihood(self, event_times, seq_lengths, cell_hist, cell_target_hist,
-                   output_hist, decay_hist, tmax) -> torch.Tensor:
+    def compute_loss(self, event_times: Tensor, seq_lengths: Tensor, cell_hist: List[Tensor], cell_target_hist,
+                     output_hist: List[Tensor], decay_hist: List[Tensor], tmax: float) -> Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
@@ -156,7 +179,7 @@ class NeuralCTLSTM(nn.Module):
         n_samples = event_times.shape[0]
         all_samples: torch.Tensor = (
                 tmax * torch.rand(*event_times.shape, n_samples)
-        ) # uniform samples in [0, tmax]
+        )  # uniform samples in [0, tmax]
         all_samples, _ = all_samples.sort(0)
         lam_samples_ = []
         for i in range(n_samples):
@@ -167,16 +190,17 @@ class NeuralCTLSTM(nn.Module):
             # we have to substract 1 (indexes start at 1)
             # and the no. of trailing, padding 0s in the sequence
             indices = (
-                torch.sum(samples[:-1,None] >= event_times[:-1], dim=1)
-                - (max_seq_length-seq_lengths) - 1
+                    torch.sum(samples[:-1, None] >= event_times[:-1], dim=1)
+                    - (max_seq_length - seq_lengths) - 1
             )
             # Get the samples of the intensity function
             try:
                 lam_samples_.append(self.compute_intensity(
-                    dsamples, output_hist[:,indices,:],
-                    cell_hist[:,indices,:], cell_target_hist[:,indices,:],
-                    decay_hist[:,indices,:]))
+                    dsamples, output_hist[:, indices, :],
+                    cell_hist[:, indices, :], cell_target_hist[:, indices, :],
+                    decay_hist[:, indices, :]))
             except Exception as inst:
+                import pdb;
                 pdb.set_trace()
                 raise
         lam_samples_ = torch.stack(lam_samples_)
@@ -186,12 +210,12 @@ class NeuralCTLSTM(nn.Module):
         res = -log_sum + integral
         return res.mean()
 
-    def pred_loss(self, output, cell_hist, cell_target_hist):
-        #
-        pass
-
 
 class CTGenerator:
+    """
+    Sequence generator for the CT-LSTM model.
+    """
+
     def __init__(self, model: NeuralCTLSTM):
         self.model = model
         with torch.no_grad():
@@ -205,7 +229,7 @@ class CTGenerator:
         self.output = None
         self.cell_decay = None
 
-    def generate_sequence(self, tmax: float) -> typing.List[torch.Tensor]:
+    def generate_sequence(self, tmax: float) -> List[torch.Tensor]:
         """
         Generate a sequence of events distributed according to the neural Hawkes model.
 
@@ -222,7 +246,7 @@ class CTGenerator:
 
         while s <= tmax:
             u1 = np.random.rand()
-            dt: torch.Tensor = -1./lbda_max*np.log(u1)
+            dt: torch.Tensor = -1. / lbda_max * np.log(u1)
             s += dt.item()  # Increment s
             print("Increment: {:}".format(dt.item()))
             if s > tmax:
@@ -232,16 +256,16 @@ class CTGenerator:
             # Compute what the hidden state at s is
             cell_state_s = (
                     self.cell_target + (self.cell_t - self.cell_target)
-                    * torch.exp(-self.cell_decay*(s-t))
+                    * torch.exp(-self.cell_decay * (s - t))
             )
             hidden_state_s = self.output * torch.tanh(cell_state_s)
             # Apply activation function to hidden state
-            intens = self.model.activation(self.model.w_alpha(hidden_state_s)).item()
+            intens = self.model.activation(hidden_state_s).item()
             u2 = np.random.rand()  # random in [0,1]
             print("Intensity {:}".format(intens))
             print("\tlbda_max\t{:}".format(lbda_max))
-            print("\tratio\t{:}".format(intens/lbda_max))
-            if u2 <= intens/lbda_max:
+            print("\tratio\t{:}".format(intens / lbda_max))
+            if u2 <= intens / lbda_max:
                 lbda_max = self.update_max_lambda()
                 self.lbda_max_seq_.append(lbda_max)
                 self.update_hidden_state(s)
@@ -281,9 +305,9 @@ class CTGenerator:
         .. math::
             o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
         """
-        w_al = self.model.w_alpha.weight.data
+        w_alpha = self.model.activation[0].weight.data
         cell_diff = self.cell_t - self.cell_target
-        mult_prefix = w_al*self.output
+        mult_prefix = w_alpha * self.output
         pos_prefactor = mult_prefix > 0
         pos_decr = pos_prefactor & (cell_diff >= 0)
         p1 = torch.dot(mult_prefix[pos_decr], torch.tanh(self.cell_t[pos_decr]))
@@ -293,7 +317,7 @@ class CTGenerator:
         p3 = torch.dot(mult_prefix[neg_decr], torch.tanh(self.cell_target[neg_decr]))
         neg_incr = ~pos_prefactor & (cell_diff < 0)
         p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(self.cell_t[neg_incr]))
-        lbda_tilde = p1+p2+p3+p4
+        lbda_tilde = p1 + p2 + p3 + p4
         return self.model.activation(lbda_tilde)
 
     def make_ctlstm_sequence_plot(self, n: int, tmax: float):
@@ -327,6 +351,5 @@ class CTGenerator:
                 c_target + (c_t - c_target) * torch.exp(-decay * (t - sequence[interv_counter]))
             )
             with torch.no_grad():
-                y_vals[i] = self.model.activation(
-                    self.model.w_alpha(hidden_t)).item()
+                y_vals[i] = self.model.activation(hidden_t).item()
         return tls, y_vals

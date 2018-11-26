@@ -64,7 +64,7 @@ h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
 où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i,t_{i+1}]$ via les équations
 \begin{subequations}
 \begin{align}
-	h_{i+1} &= \tanh(W_{hh}h(t_i) + b_{hh} + W_{xh}x_i + b_{xh})\quad\text{(\textit{hidden layer})} \\
+	h_{i+1} &= \tanh(W_{hh}h(t_i) + W_{xh}x_i + b_{h})\quad\text{(\textit{hidden layer})} \\
 	\delta_{i+1} &= f(W_dh(t_i) + b_d).
 \end{align}
 \end{subequations}
