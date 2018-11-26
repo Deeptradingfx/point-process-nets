@@ -60,7 +60,6 @@ class HawkesDecayRNN(nn.Module):
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
-        # seq_types = self.embed(seq_types)
         concat = torch.cat((seq_types, hidden_ti), dim=1)
         # Decay value for the next interval, predicted from the decayed hidden state
         decay = self.decay_layer(concat)
