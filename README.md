@@ -47,3 +47,5 @@ model.eval() # Evaluation mode
 6. On a Bayesian RNN for learning the decrease speed parameter in a process: Neural Hawkes Process Memory (Mike Mozer)  <http://www.cs.colorado.edu/~mozer/Research/Selected%20Publications/talks/Mozer_NeuralHawkesProcessMemory_NIPS2016.pdf>
 7. Recurrent Marked Temporal Point Processes:
 <https://www.kdd.org/kdd2016/papers/files/rpp1081-duA.pdf>
+8. Numerical Recipes The Art of scientific Computing (An amazing book for not analytic integration)
+https://e-maxx.ru/bookz/files/numerical_recipes.pdf
