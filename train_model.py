@@ -10,14 +10,15 @@ from train_functions import train_decayrnn
 SEED = 52
 torch.manual_seed(SEED)
 
-SYNTH_DATA_FILES = glob.glob("data/simulated/*")
+SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
 print("Available files:")
-for s in SYNTH_DATA_FILES:
-    print(s)
+for i, s in enumerate(SYNTH_DATA_FILES):
+    print("{:<4}{:<3}".format(i, s))
 
 process_dim = 1
 print("Loading {}-dimensional process".format(process_dim))
-chosen_file = SYNTH_DATA_FILES[process_dim - 1]
+chosen_file_index = int(input("Index of file: "))
+chosen_file = SYNTH_DATA_FILES[chosen_file_index]
 with open(chosen_file, 'rb') as f:
     import pickle
     loaded_hawkes_data = pickle.load(f)
