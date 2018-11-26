@@ -135,23 +135,23 @@ class HawkesDecayRNN(nn.Module):
         # import pdb; pdb.set_trace()
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intens_ev_times_filtered = intens_ev_times*seq_types[:-1]
+        intens_ev_times_filtered = (intens_ev_times*seq_types[:-1]).sum(dim=2)
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)
-        first_term = intens_ev_times_filtered.sum(dim=2).log().sum(dim=0)
+        first_term = intens_ev_times_filtered.log().sum(dim=0)
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
         time_samples = seq_times[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
-        intensity_at_samples = [
+        intens_at_samples = [
             self.compute_intensity(hiddens[i], decays[i],
                                    time_samples[i, :batch_sizes[i]], seq_times[i, :batch_sizes[i]])
             for i in range(n_times)
         ]
-        intensity_at_samples = nn.utils.rnn.pad_sequence(
-            intensity_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
-        total_intens_samples: Tensor = intensity_at_samples.sum(dim=2, keepdim=True)
+        intens_at_samples = nn.utils.rnn.pad_sequence(
+            intens_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
+        total_intens_samples: Tensor = intens_at_samples.sum(dim=2, keepdim=True)
         integral_estimates: Tensor = dt_sequence*total_intens_samples
         second_term = integral_estimates.sum(dim=0)
         res = (- first_term + second_term).mean()

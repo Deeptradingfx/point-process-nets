@@ -118,7 +118,7 @@ class NeuralCTLSTM(nn.Module):
         return output, hidden_i, h_t_actual, cell_i, c_t_actual, cell_target, decay_i
 
     def compute_intensity(self, dt: Tensor, output: Tensor,
-                          cell_ti, c_target_i, decay) -> Tensor:
+                          cell_ti: Tensor, c_target_i: Tensor, decay: Tensor) -> Tensor:
         """
         Compute the intensity function.
 
@@ -142,21 +142,22 @@ class NeuralCTLSTM(nn.Module):
         # Get the values of c(t)
         c_t_after = (
                 c_target_i + (cell_ti - c_target_i) *
-                torch.exp(-decay * dt.unsqueeze(-1).expand(cell_ti.shape))
+                torch.exp(-decay * dt)
         )
         # Compute hidden state
         h_t = output * torch.tanh(c_t_after)
         return self.activation(h_t)
 
-    def compute_loss(self, event_times: Tensor, seq_lengths: Tensor, hiddens: List[Tensor],
+    def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor, hiddens: List[Tensor],
                      cell_hist: List[Tensor], cell_target_hist: List[Tensor], outputs: List[Tensor],
                      decay_hist: List[Tensor], tmax: float) -> Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
         Args:
-            event_times: event occurrence timestamps
-            seq_lengths: real sequence lengths
+            seq_times: event occurrence timestamps
+            seq_types: types of events in the sequence
+            batch_sizes: batch sizes for each event sequence tensor, by length
             hiddens: hidden state history
             cell_hist: entire cell state history
             cell_target_hist: cell state target values history
@@ -170,50 +171,32 @@ class NeuralCTLSTM(nn.Module):
         Shape:
             one-element tensor
         """
-        n_times = event_times.size(0)
-        dt_seq = event_times[1:] - event_times[:-1]
+        n_times = len(hiddens)
+        dt_seq = seq_times[1:] - seq_times[:-1]
         # Get the intensity process
         intens_ev_times = [
             self.activation(hiddens[i])
             for i in range(n_times)
         ]
+        # shape N * batch * K
         intens_ev_times = nn.utils.rnn.pad_sequence(
             intens_ev_times, batch_first=True, padding_value=1.0)
-        log_sum = intens_ev_times.log().sum()
+        intens_ev_times_filtered: Tensor = torch.sum(intens_ev_times * seq_types[:-1], dim=2)
+        log_sum: Tensor = intens_ev_times_filtered.log().sum(dim=0)
         # The integral term is computed using a Monte Carlo method
-        n_samples = event_times.shape[0]
-        all_samples: torch.Tensor = (
-                tmax * torch.rand(*event_times.shape, n_samples)
-        )  # uniform samples in [0, tmax]
-        all_samples, _ = all_samples.sort(0)
-        lam_samples_ = []
-        for i in range(n_samples):
-            samples = all_samples[:, i]
-            dsamples = samples[1:] - samples[:-1]
-            # Get the index of each elt of samples inside
-            # the subdivision given by the event_times array
-            # we have to substract 1 (indexes start at 1)
-            # and the no. of trailing, padding 0s in the sequence
-            indices = (
-                    torch.sum(samples[:-1, None] >= event_times[:-1], dim=1)
-                    - (n_times - seq_lengths) - 1
-            )
-            # Get the samples of the intensity function
-            try:
-                lam_samples_.append(self.compute_intensity(
-                    dsamples, outputs[:, indices, :],
-                    cell_hist[:, indices, :], cell_target_hist[:, indices, :],
-                    decay_hist[:, indices, :]))
-            except Exception as inst:
-                import pdb;
-                pdb.set_trace()
-                raise
-        lam_samples_ = torch.stack(lam_samples_)
-        integral = torch.sum(tmax * lam_samples_, dim=1)
-        # Tensor of dim. batch_size
-        # of the values of the likelihood
-        res = -log_sum + integral
-        return res.mean()
+        time_samples: Tensor = dt_seq*torch.rand_like(dt_seq)  # time increment samples for each interval
+        intens_at_samples = [
+            self.compute_intensity(time_samples[i, :batch_sizes[i]], outputs[i],
+                                   cell_hist[i], cell_target_hist[i], decay_hist[i])
+            for i in range(n_times)
+        ]
+        intens_at_samples = nn.utils.rnn.pad_sequence(
+            intens_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
+        total_intens_samples: Tensor = intens_at_samples.sum(dim=2, keepdim=True)
+        integral_estimates: Tensor = dt_seq * total_intens_samples
+        second_term = integral_estimates.sum(dim=0)
+        res = (- log_sum + second_term).mean()
+        return res
 
 
 class CTGenerator:

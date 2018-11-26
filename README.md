@@ -1,7 +1,5 @@
 # Neural network-based point process models
 
-Supervised by [Emmanuel Bacry](mailto:emmanuel.bacry@polytechnique.fr).
-
 Synthetic point processes are simulated using [`tick`](https://github.com/X-DataInitiative/tick)
 and [`point-process-rust`](https://github.com/ManifoldFR/point-process-rust).
 

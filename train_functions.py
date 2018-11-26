@@ -44,12 +44,12 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
         # inter-arrival times
         for i in tr_loop_range:
             optimizer.zero_grad()
-            batch_seq_lengths = seq_lengths[i:(i + batch_size)]
+            batch_seq_lengths: Tensor = seq_lengths[i:(i + batch_size)]
             max_seq_length = batch_seq_lengths[0]
-            batch_seq_times = seq_times[:max_seq_length + 1, i:(i + batch_size)]
-            batch_seq_types = seq_types[:max_seq_length + 1, i:(i + batch_size)]
+            batch_seq_times: Tensor = seq_times[:max_seq_length + 1, i:(i + batch_size)]
+            batch_seq_types: Tensor = seq_types[:max_seq_length + 1, i:(i + batch_size)]
             # Inter-event time intervals
-            batch_dt = batch_seq_times[1:] - batch_seq_times[:-1]
+            batch_dt: Tensor = batch_seq_times[1:] - batch_seq_times[:-1]
             # print("max seq. lengths: {}".format(max_seq_length))
             # print("dt shape: {}".format(dt_sequence.shape))
             # Trim the sequence to its real length
@@ -89,8 +89,8 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
                 cell_target_hist.append(cell_target)
                 decay_hist.append(decay)
             loss = model.compute_loss(
-                seq_times, seq_lengths, hidden_hist, cell_hist, cell_target_hist,
-                output_hist, decay_hist, tmax)
+                batch_seq_times.unsqueeze(2), batch_seq_types, packed_times.batch_sizes, hidden_hist, cell_hist,
+                cell_target_hist, output_hist, decay_hist, tmax)
             # Compute the gradients
             loss.backward()
             # Update the model parameters
