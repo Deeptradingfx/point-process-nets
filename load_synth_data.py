@@ -1,8 +1,9 @@
 import torch
-from torch import nn
+from torch import Tensor, nn
+from typing import Tuple
 
 
-def process_loaded_sequences(loaded_hawkes_data: dict):
+def process_loaded_sequences(loaded_hawkes_data: dict) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Preprocess synthetic Hawkes data.
 

@@ -26,7 +26,7 @@ class HawkesDecayRNN(nn.Module):
         input_size += 1  # add the dimension of the beginning-of-sequence event type
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.rnn_layer = nn.RNNCell(input_size, hidden_size, nonlinearity="tanh")
+        self.rnn_layer = nn.RNNCell(input_size, hidden_size, nonlinearity="relu")
         # self.rnn_layer = nn.Sequential(
         #     nn.Linear(input_size+hidden_size, hidden_size), nn.ReLU())
         self.decay_layer = nn.Sequential(
