@@ -89,7 +89,7 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
                 cell_target_hist.append(cell_target)
                 decay_hist.append(decay)
             loss = model.compute_loss(
-                seq_times, seq_lengths, cell_hist, cell_target_hist,
+                seq_times, seq_lengths, hidden_hist, cell_hist, cell_target_hist,
                 output_hist, decay_hist, tmax)
             # Compute the gradients
             loss.backward()

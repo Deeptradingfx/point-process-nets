@@ -97,7 +97,7 @@ class HawkesDecayRNN(nn.Module):
         h_t = hidden*torch.exp(-decay*(s-t))
         return self.intensity_layer(h_t)
 
-    def compute_loss(self, sequence: Tensor, seq_types: Tensor, batch_sizes: Tensor,
+    def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor,
                      hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
         Negative log-likelihood
@@ -109,7 +109,7 @@ class HawkesDecayRNN(nn.Module):
         counting :math:`[0, t_1)` and :math:`(t_N, tmax)`.
 
         Args:
-            sequence: event sequence, including start time 0
+            seq_times: event sequence, including start time 0
                 Shape: (N + 1) * batch
             seq_types: event types, one-hot encoded
                 Shape: N * batch * (K + 1)
@@ -123,30 +123,30 @@ class HawkesDecayRNN(nn.Module):
         Returns:
 
         """
-        dt_sequence: Tensor = sequence[1:] - sequence[:-1]  # shape N * batch
+        dt_sequence: Tensor = seq_times[1:] - seq_times[:-1]  # shape N * batch
         n_times = len(hiddens)
-        intensity_ev_times: Tensor = [
+        intens_ev_times: Tensor = [
             self.intensity_layer(hiddens[i])
             for i in range(n_times)
         ]
         # shape N * batch * input_dim
-        intensity_ev_times = nn.utils.rnn.pad_sequence(
-            intensity_ev_times, batch_first=True, padding_value=1.0)
+        intens_ev_times = nn.utils.rnn.pad_sequence(
+            intens_ev_times, batch_first=True, padding_value=1.0)
         # import pdb; pdb.set_trace()
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intensity_ev_times_filtered = intensity_ev_times*seq_types[:-1]
+        intens_ev_times_filtered = intens_ev_times*seq_types[:-1]
         # reduce on the type dim. (dropping the 0s in the process), then
-        # reduce the log-intensities on sequence dim.
+        # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)
-        first_term = intensity_ev_times_filtered.sum(dim=2).log().sum(dim=0)
+        first_term = intens_ev_times_filtered.sum(dim=2).log().sum(dim=0)
         # Take uniform time samples inside of each inter-event interval
-        # sequence: Tensor = torch.cat((sequence, tmax*torch.ones_like(sequence[-1:, :])))
-        # dt_sequence = sequence[1:] - sequence[:-1]
-        time_samples = sequence[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
+        # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
+        # dt_sequence = seq_times[1:] - seq_times[:-1]
+        time_samples = seq_times[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
         intensity_at_samples = [
             self.compute_intensity(hiddens[i], decays[i],
-                                   time_samples[i, :batch_sizes[i]], sequence[i, :batch_sizes[i]])
+                                   time_samples[i, :batch_sizes[i]], seq_times[i, :batch_sizes[i]])
             for i in range(n_times)
         ]
         intensity_at_samples = nn.utils.rnn.pad_sequence(

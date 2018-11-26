@@ -148,17 +148,19 @@ class NeuralCTLSTM(nn.Module):
         h_t = output * torch.tanh(c_t_after)
         return self.activation(h_t)
 
-    def compute_loss(self, event_times: Tensor, seq_lengths: Tensor, cell_hist: List[Tensor], cell_target_hist,
-                     output_hist: List[Tensor], decay_hist: List[Tensor], tmax: float) -> Tensor:
+    def compute_loss(self, event_times: Tensor, seq_lengths: Tensor, hiddens: List[Tensor],
+                     cell_hist: List[Tensor], cell_target_hist: List[Tensor], outputs: List[Tensor],
+                     decay_hist: List[Tensor], tmax: float) -> Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
         Args:
             event_times: event occurrence timestamps
             seq_lengths: real sequence lengths
+            hiddens: hidden state history
             cell_hist: entire cell state history
             cell_target_hist: cell state target values history
-            output_hist: entire output history
+            outputs: entire output history
             decay_hist: entire decay history
             tmax: temporal horizon
 
@@ -168,13 +170,16 @@ class NeuralCTLSTM(nn.Module):
         Shape:
             one-element tensor
         """
-        max_seq_length = event_times.size(0)
-        increments = event_times[1:] - event_times[:-1]
+        n_times = event_times.size(0)
+        dt_seq = event_times[1:] - event_times[:-1]
         # Get the intensity process
-        event_lambdas = self.compute_intensity(
-            increments, output_hist,
-            cell_hist, cell_target_hist, decay_hist)
-        log_sum = event_lambdas.log().sum()
+        intens_ev_times = [
+            self.activation(hiddens[i])
+            for i in range(n_times)
+        ]
+        intens_ev_times = nn.utils.rnn.pad_sequence(
+            intens_ev_times, batch_first=True, padding_value=1.0)
+        log_sum = intens_ev_times.log().sum()
         # The integral term is computed using a Monte Carlo method
         n_samples = event_times.shape[0]
         all_samples: torch.Tensor = (
@@ -191,12 +196,12 @@ class NeuralCTLSTM(nn.Module):
             # and the no. of trailing, padding 0s in the sequence
             indices = (
                     torch.sum(samples[:-1, None] >= event_times[:-1], dim=1)
-                    - (max_seq_length - seq_lengths) - 1
+                    - (n_times - seq_lengths) - 1
             )
             # Get the samples of the intensity function
             try:
                 lam_samples_.append(self.compute_intensity(
-                    dsamples, output_hist[:, indices, :],
+                    dsamples, outputs[:, indices, :],
                     cell_hist[:, indices, :], cell_target_hist[:, indices, :],
                     decay_hist[:, indices, :]))
             except Exception as inst:
