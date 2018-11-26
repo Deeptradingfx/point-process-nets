@@ -11,9 +11,9 @@ SEED = 52
 torch.manual_seed(SEED)
 
 parser = argparse.ArgumentParser(description="Train the model.")
-parser.add_argument('--epochs', type=int, required=True,
+parser.add_argument('-e', '--epochs', type=int, required=True,
                     help='Number of epochs.')
-parser.add_argument('--batch', type=int,
+parser.add_argument('-b', '--batch', type=int,
                     dest='batch_size', default=32,
                     help='Batch size.')
 
@@ -48,8 +48,10 @@ learning_rate = 0.015
 model = HawkesDecayRNN(process_dim, hidden_size)
 optimizer = optim.SGD(model.parameters(), learning_rate)
 
-train_size = int(0.5 * times_tensor.size(1))
-print("Train sample size: {:<15}".format(train_size))
+total_sample_size = times_tensor.size(1)
+train_size = int(0.5 * total_sample_size)
+print("Total sample size: {:}".format(total_sample_size))
+print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
 # Define training data
 train_times_tensor = times_tensor[:, :train_size]
