@@ -223,7 +223,6 @@ class CTGenerator:
 
         WARNING: Check the model is in evaluation mode!
         """
-        assert not self.model.training
         # Reinitialize sequence
         self.sequence_ = []
         s = 0.0
