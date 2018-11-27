@@ -158,6 +158,8 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             # N * batch
             max_batch_size = packed_times.batch_sizes[0]
             hidd_decayed, decay = model.initialize_hidden(max_batch_size, device)
+            print(hidd_decayed)
+            print(decay)
             # Data records
             # hidd_decayed: 0
             # decay: 0

@@ -2,6 +2,7 @@ import argparse
 import datetime
 import glob
 import os
+import pickle
 
 import torch
 from torch import optim
@@ -41,8 +42,6 @@ if __name__ == '__main__':
     chosen_file_index = int(input("Which file ? Index: "))
     chosen_file = SYNTH_DATA_FILES[chosen_file_index]
     with open(chosen_file, 'rb') as f:
-        import pickle
-
         loaded_hawkes_data = pickle.load(f)
 
     mu = loaded_hawkes_data['mu']
