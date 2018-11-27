@@ -1,12 +1,14 @@
-import torch
-from torch import nn, optim
-import os, sys, glob
 import argparse
+import datetime
+import glob
+import os
+
+import torch
+from torch import optim
+
 from load_synth_data import process_loaded_sequences, one_hot_embedding
 from models.decayrnn import HawkesDecayRNN
 from train_functions import train_decayrnn
-import datetime
-
 
 SEED = 52
 torch.manual_seed(SEED)
@@ -31,6 +33,7 @@ chosen_file_index = int(input("Index of file: "))
 chosen_file = SYNTH_DATA_FILES[chosen_file_index]
 with open(chosen_file, 'rb') as f:
     import pickle
+
     loaded_hawkes_data = pickle.load(f)
 
 mu = loaded_hawkes_data['mu']
@@ -67,12 +70,15 @@ loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_ty
                            tmax, BATCH_SIZE, EPOCHS, use_jupyter=False)
 
 # Model file dump
+SAVED_MODELS_PATH = os.path.abspath('saved_models')
+os.makedirs(SAVED_MODELS_PATH, exist_ok=True)
+print("Saved models directory: {}".format(SAVED_MODELS_PATH))
+
 date_format = "%Y%m%d-%H%M%S"
 now_timestamp = datetime.datetime.now().strftime(date_format)
 extra_tag = "{}d".format(process_dim)
 filename_base = "{}-{}-{}".format(model.__class__.__name__, extra_tag, now_timestamp)
 filename_model_save = filename_base + ".pth"
-SAVED_MODELS_PATH = os.path.abspath('saved_models')
 filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
 print("Saving model state dict to {}".format(filepath))
 torch.save(model.state_dict(), filepath)
