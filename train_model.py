@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     print("Hawkes process parameters:")
     for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
-        print("{:<20}{:<20}".format(label, val))
+        print("{:<20}{}".format(label, val))
 
     device = torch.device('cuda:0' if USE_CUDA else 'cpu')
     print("Training on device {}".format(device))
