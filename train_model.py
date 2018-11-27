@@ -5,6 +5,7 @@ import argparse
 from load_synth_data import process_loaded_sequences, one_hot_embedding
 from models.decayrnn import HawkesDecayRNN
 from train_functions import train_decayrnn
+import datetime
 
 
 SEED = 52
@@ -64,3 +65,11 @@ EPOCHS = args.epochs
 
 loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_types, train_seq_lengths,
                            tmax, BATCH_SIZE, EPOCHS, use_jupyter=False)
+
+# Model file dump
+date_format = "%Y%m%d-%H%M%S"
+now_timestamp = datetime.datetime.now().strftime(date_format)
+extra_tag = "{}d".format(process_dim)
+filename = "{}-{}-{}.pth".format(model.__class__.__name__, extra_tag, now_timestamp)
+print("Saving model state dict to {}".format(filename))
+torch.save(model.state_dict(), filename)
