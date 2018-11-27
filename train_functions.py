@@ -195,3 +195,4 @@ def plot_loss(epochs: int, loss_hist, title: str = None):
     ax.set_ylabel("Loss")
     if title:
         ax.set_title = title
+    return fig

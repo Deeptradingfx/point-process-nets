@@ -70,6 +70,16 @@ loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_ty
 date_format = "%Y%m%d-%H%M%S"
 now_timestamp = datetime.datetime.now().strftime(date_format)
 extra_tag = "{}d".format(process_dim)
-filename = "{}-{}-{}.pth".format(model.__class__.__name__, extra_tag, now_timestamp)
-print("Saving model state dict to {}".format(filename))
-torch.save(model.state_dict(), filename)
+filename_base = "{}-{}-{}".format(model.__class__.__name__, extra_tag, now_timestamp)
+filename_model_save = filename_base + ".pth"
+SAVED_MODELS_PATH = os.path.abspath(os.path.join('..', 'saved_models'))
+filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
+print("Saving model state dict to {}".format(filepath))
+torch.save(model.state_dict(), filepath)
+
+from train_functions import plot_loss
+fig = plot_loss(EPOCHS, loss_hist)
+filename_loss_plot = filename_base + "_loss_plot.png"
+loss_plot_filepath = os.path.join(SAVED_MODELS_PATH, filename_loss_plot)
+print("Saving loss plot to {}".format(loss_plot_filepath))
+fig.savefig(loss_plot_filepath)
