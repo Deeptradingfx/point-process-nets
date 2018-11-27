@@ -130,6 +130,7 @@ class HawkesDecayRNN(nn.Module):
 
         """
         dt_sequence: Tensor = seq_times[1:] - seq_times[:-1]  # shape N * batch
+        device = seq_times.device
         n_times = len(hiddens)
         n_batch = dt_sequence.shape[1]
         intens_ev_times: Tensor = [
@@ -154,7 +155,8 @@ class HawkesDecayRNN(nn.Module):
         # shape N * batch * M_mc
         seq_times_ext = torch.cat((seq_times, tmax*torch.ones_like(seq_times[:1])))
         dt_seq_ext = seq_times_ext[1:] - seq_times_ext[:-1]
-        taus = dt_seq_ext.unsqueeze(-1) * torch.rand(n_times + 1, n_batch, 1, M_mc)  # inter-event times samples
+        taus = torch.rand(n_times + 1, n_batch, 1, M_mc).to(device)
+        taus = dt_seq_ext.unsqueeze(-1) * taus  # inter-event times samples
         intens_at_samples = [
             self.compute_intensity(hiddens[i].unsqueeze(-1), decays[i].unsqueeze(-1),
                                    taus[i, :batch_sizes[i]])
