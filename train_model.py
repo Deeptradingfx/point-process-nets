@@ -19,6 +19,9 @@ parser.add_argument('-e', '--epochs', type=int, required=True,
 parser.add_argument('-b', '--batch', type=int,
                     dest='batch_size', default=32,
                     help='Batch size.')
+parser.add_argument('--log-dir', type=str,
+                    dest='log_dir', default='logs',
+                    help="Training logs target directory.")
 
 args = parser.parse_args()
 
@@ -83,9 +86,20 @@ filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
 print("Saving model state dict to {}".format(filepath))
 torch.save(model.state_dict(), filepath)
 
-from train_functions import plot_loss
-fig = plot_loss(EPOCHS, loss_hist)
-filename_loss_plot = filename_base + "_loss_plot.png"
-loss_plot_filepath = os.path.join(SAVED_MODELS_PATH, filename_loss_plot)
-print("Saving loss plot to {}".format(loss_plot_filepath))
-fig.savefig(loss_plot_filepath)
+# Save train history to logs
+LOGS_PATH = os.path.abspath(args.log_dir)
+os.makedirs(LOGS_PATH, exist_ok=True)
+print("Logs directory: {}".format(LOGS_PATH))
+filename_loss_hist = "log_" + filename_base + ".pkl"
+print("Saving traning loss log to {}".format(filename_loss_hist))
+pickle.dump(loss_hist, filename_loss_hist)
+
+try:
+    from train_functions import plot_loss
+    fig = plot_loss(EPOCHS, loss_hist)
+    filename_loss_plot = filename_base + "_loss_plot.png"
+    loss_plot_filepath = os.path.join(SAVED_MODELS_PATH, filename_loss_plot)
+    print("Saving loss plot to {}".format(loss_plot_filepath))
+    fig.savefig(loss_plot_filepath)
+except ImportError:
+    print("Error importing matplotlib.")

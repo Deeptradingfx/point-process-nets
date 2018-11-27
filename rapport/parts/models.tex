@@ -65,7 +65,7 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 \begin{subequations}
 \begin{align}
 	h_{i+1} &= \tanh(W_{hh}h(t_i) + W_{xh}x_i + b_{h})\quad\text{(\textit{hidden layer})} \\
-	\delta_{i+1} &= f(W_dh(t_i) + b_d).
+	\delta_{i+1} &= f(W_{hd}h(t_i) + W_{xd}x_i + b_d).
 \end{align}
 \end{subequations}
 \footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = {(0,1,0)}^\intercal$}
