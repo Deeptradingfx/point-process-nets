@@ -115,6 +115,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
     Train the HawkesDecayRNN model.
 
     Args:
+        use_cuda:
         seq_times: event sequence samples
         seq_types: event types of the event sequence
         seq_lengths: lengths of the sequence in the sample
@@ -125,7 +126,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         tmax:
         use_jupyter: use tqdm's Jupyter mode
     """
-    device = torch.device("cuda:0" if use_cuda else "cpu")
+    device = torch.device('cuda:0' if use_cuda else 'cpu')
     model.train()  # ensure model is in training mode
     print("Batch size {}".format(batch_size))
     print("Number of epochs {}".format(n_epochs))

@@ -13,21 +13,26 @@ from train_functions import train_decayrnn
 
 SEED = 52
 torch.manual_seed(SEED)
+DEFAULT_BATCH_SIZE = 24
+DEFAULT_HIDDEN_SIZE = 3
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train the model.")
     parser.add_argument('-e', '--epochs', type=int, required=True,
-                        help='Number of epochs.')
+                        help='number of epochs.')
     parser.add_argument('-b', '--batch', type=int,
-                        dest='batch_size', default=32,
-                        help='Batch size.')
+                        dest='batch_size', default=DEFAULT_BATCH_SIZE,
+                        help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
+    parser.add_argument('--hidden', type=int,
+                        dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
+                        help='hidden node size. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
     parser.add_argument('--log-dir', type=str,
                         dest='log_dir', default='logs',
-                        help="Training logs target directory.")
+                        help="training logs target directory.")
     parser.add_argument('--no-save', dest='save', action='store_false',
-                        help="Do not save the model state dict and loss history.")
+                        help="do not save the model state dict and loss history.")
     parser.add_argument('--cuda', dest='use_cuda', action='store_true',
-                        help="Whether or not to use GPU.")
+                        help="whether or not to use GPU.")
 
     args = parser.parse_args()
     USE_CUDA = args.use_cuda
@@ -35,10 +40,10 @@ if __name__ == '__main__':
     SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
     print("Available files:")
     for i, s in enumerate(SYNTH_DATA_FILES):
-        print("{:<4}{:<3}".format(i, s))
+        print("{:<4}{:<10}".format(i, s))
 
     process_dim = 1
-    print("Loading {}-dimensional process".format(process_dim))
+    print("Loading {}-dimensional process.".format(process_dim), end=' ')
     chosen_file_index = int(input("Which file ? Index: "))
     chosen_file = SYNTH_DATA_FILES[chosen_file_index]
     with open(chosen_file, 'rb') as f:
@@ -52,7 +57,8 @@ if __name__ == '__main__':
     for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
         print("{:<20}{:<20}".format(label, val))
 
-    device = torch.device('cuda:0' if USE_CUDA else 'cuda')
+    device = torch.device('cuda:0' if USE_CUDA else 'cpu')
+    print("Training on device {}".format(device))
     times_tensor, seq_types, seq_lengths = process_loaded_sequences(loaded_hawkes_data)
     onehot_types = one_hot_embedding(seq_types, process_dim + 1)
     times_tensor = times_tensor.to(device)
@@ -60,14 +66,14 @@ if __name__ == '__main__':
     seq_lengths = seq_lengths.to(device)
     onehot_types = onehot_types.to(device)
 
-    hidden_size = 24
+    hidden_size = args.hidden_size
     learning_rate = 0.015
+    print("Hidden size: {}".format(hidden_size))
     model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
     total_sample_size = times_tensor.size(1)
-    train_size = int(0.5 * total_sample_size)
-    print("Total sample size: {:}".format(total_sample_size))
+    train_size = 1000
     print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
     # Define training data
