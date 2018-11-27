@@ -80,7 +80,7 @@ if __name__ == '__main__':
     EPOCHS = args.epochs
 
     loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_types, train_seq_lengths,
-                               tmax, BATCH_SIZE, EPOCHS, use_jupyter=False)
+                               tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
 
     if args.save:
         # Model file dump

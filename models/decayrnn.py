@@ -78,7 +78,6 @@ class HawkesDecayRNN(nn.Module):
         if device:
             h0 = h0.to(device)
             d0 = d0.to(device)
-        print(device)
         return h0, d0
 
     def compute_intensity(self, hidden: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
