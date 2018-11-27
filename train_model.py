@@ -53,12 +53,16 @@ if __name__ == '__main__':
     for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
         print("{:<20}{:<20}".format(label, val))
 
+    device = torch.device('cuda:0' if USE_CUDA else 'cuda')
     times_tensor, seq_types, seq_lengths = process_loaded_sequences(loaded_hawkes_data)
     onehot_types = one_hot_embedding(seq_types, process_dim + 1)
+    times_tensor = times_tensor.to(device)
+    seq_types = seq_types.to(device)
+    seq_lengths = seq_lengths.to(device)
+    onehot_types = onehot_types.to(device)
 
     hidden_size = 24
     learning_rate = 0.015
-    device = torch.device('cuda:0' if USE_CUDA else 'cuda')
     model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
