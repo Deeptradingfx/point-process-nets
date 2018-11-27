@@ -31,8 +31,7 @@ class HawkesDecayRNN(nn.Module):
         #     nn.Linear(input_size+hidden_size, hidden_size), nn.ReLU())
         self.decay_layer = nn.Sequential(
             nn.Linear(input_size + hidden_size, 1),
-            nn.Softplus(beta=3.0)
-        )
+            nn.Softplus(beta=3.0))
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, input_size, bias=False),
             nn.Softplus(beta=3.0)
