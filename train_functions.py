@@ -110,7 +110,7 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
 
 def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tensor, seq_types: Tensor,
                    seq_lengths: Tensor, tmax: float, batch_size: int, n_epochs: int,
-                   use_jupyter: bool = False) -> List[float]:
+                   use_cuda: bool = False, use_jupyter: bool = False) -> List[float]:
     """
     Train the HawkesDecayRNN model.
 
@@ -125,20 +125,21 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         tmax:
         use_jupyter: use tqdm's Jupyter mode
     """
+    device = torch.device("cuda:0" if use_cuda else "cpu")
     model.train()  # ensure model is in training mode
     print("Batch size {}".format(batch_size))
     print("Number of epochs {}".format(n_epochs))
     train_size = seq_times.size(1)
     loss_hist = []
-    for e in range(1, n_epochs + 1):
+    for epoch in range(1, n_epochs + 1):
         # Epoch loop
         epoch_loss = []
         if use_jupyter:
             tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
-                                         file=sys.stdout, desc="Epoch %d" % e)
+                                         file=sys.stdout, desc="Epoch %d" % epoch)
         else:
             tr_loop_range = tqdm.trange(0, train_size, batch_size, ascii=True,
-                                        file=sys.stdout, desc="Epoch %d" % e)
+                                        file=sys.stdout, desc="Epoch %d" % epoch)
         # Full pass through the dataset
         for i in tr_loop_range:
             optimizer.zero_grad()
@@ -156,7 +157,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             # Reshape to a format the RNN can understand
             # N * batch
             max_batch_size = packed_times.batch_sizes[0]
-            hidd_decayed, decay = model.initialize_hidden(max_batch_size)
+            hidd_decayed, decay = model.initialize_hidden(max_batch_size, device)
             # Data records
             # hidd_decayed: 0
             # decay: 0
@@ -181,7 +182,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             optimizer.step()
             epoch_loss.append(loss.item())
         epoch_loss_mean: float = np.mean(epoch_loss)
-        print('epoch {}: train loss {:.4f}'.format(n_epochs, epoch_loss_mean))
+        print('epoch {}: train loss {:.4f}'.format(epoch, epoch_loss_mean))
         loss_hist.append(epoch_loss_mean)  # append the final loss of each epoch
     return loss_hist
 

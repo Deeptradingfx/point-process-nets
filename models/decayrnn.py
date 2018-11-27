@@ -67,14 +67,18 @@ class HawkesDecayRNN(nn.Module):
         hidden_after_decay = hidden * torch.exp(-decay * dt[:, None])  # shape batch * hidden_size
         return hidden, decay, hidden_after_decay
 
-    def initialize_hidden(self, batch_size: int = 1) -> Tuple[Tensor, Tensor]:
+    def initialize_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
         """
 
         Returns:
             Shape: batch * hidden_size, batch * 1
         """
-        return (torch.zeros(batch_size, self.hidden_size),
-                torch.zeros(batch_size, 1))
+        (h0, d0) = (torch.zeros(batch_size, self.hidden_size),
+                    torch.zeros(batch_size, 1))
+        if device:
+            h0 = h0.to(device)
+            d0 = d0.to(device)
+        return h0, d0
 
     def compute_intensity(self, hidden: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """

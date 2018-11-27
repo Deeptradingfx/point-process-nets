@@ -25,8 +25,11 @@ if __name__ == '__main__':
                         help="Training logs target directory.")
     parser.add_argument('--no-save', dest='save', action='store_false',
                         help="Do not save the model state dict and loss history.")
+    parser.add_argument('--cuda', dest='use_cuda', action='store_true',
+                        help="Whether or not to use GPU.")
 
     args = parser.parse_args()
+    USE_CUDA = args.use_cuda
 
     SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
     print("Available files:")
@@ -55,7 +58,8 @@ if __name__ == '__main__':
 
     hidden_size = 24
     learning_rate = 0.015
-    model = HawkesDecayRNN(process_dim, hidden_size)
+    device = torch.device('cuda:0' if USE_CUDA else 'cuda')
+    model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
     total_sample_size = times_tensor.size(1)
