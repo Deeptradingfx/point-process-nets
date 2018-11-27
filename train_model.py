@@ -72,7 +72,7 @@ now_timestamp = datetime.datetime.now().strftime(date_format)
 extra_tag = "{}d".format(process_dim)
 filename_base = "{}-{}-{}".format(model.__class__.__name__, extra_tag, now_timestamp)
 filename_model_save = filename_base + ".pth"
-SAVED_MODELS_PATH = os.path.abspath(os.path.join('..', 'saved_models'))
+SAVED_MODELS_PATH = os.path.abspath('saved_models')
 filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
 print("Saving model state dict to {}".format(filepath))
 torch.save(model.state_dict(), filepath)
