@@ -23,7 +23,8 @@ if __name__ == '__main__':
     parser.add_argument('--log-dir', type=str,
                         dest='log_dir', default='logs',
                         help="Training logs target directory.")
-    parser.add_argument('--no-save', dest='save', action='store_false')
+    parser.add_argument('--no-save', dest='save', action='store_false',
+                        help="Do not save the model state dict and loss history.")
 
     args = parser.parse_args()
 
@@ -34,7 +35,7 @@ if __name__ == '__main__':
 
     process_dim = 1
     print("Loading {}-dimensional process".format(process_dim))
-    chosen_file_index = int(input("Index of file: "))
+    chosen_file_index = int(input("Which file ? Index: "))
     chosen_file = SYNTH_DATA_FILES[chosen_file_index]
     with open(chosen_file, 'rb') as f:
         import pickle
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 
     print("Hawkes process parameters:")
     for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
-        print("{:<15}{:<15}".format(label, val))
+        print("{:<20}{:<20}".format(label, val))
 
     times_tensor, seq_types, seq_lengths = process_loaded_sequences(loaded_hawkes_data)
     onehot_types = one_hot_embedding(seq_types, process_dim + 1)

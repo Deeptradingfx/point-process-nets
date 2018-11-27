@@ -34,8 +34,7 @@ class HawkesDecayRNN(nn.Module):
             nn.Softplus(beta=3.0))
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, input_size, bias=False),
-            nn.Softplus(beta=3.0)
-        )
+            nn.Softplus(beta=3.0))
 
     def forward(self, dt: Tensor, seq_types: Tensor, hidden_ti: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -77,23 +76,28 @@ class HawkesDecayRNN(nn.Module):
         return (torch.zeros(batch_size, self.hidden_size),
                 torch.zeros(batch_size, 1))
 
-    def compute_intensity(self, hidden: Tensor, decay: Tensor, s: Tensor, t: Tensor) -> Tensor:
+    def compute_intensity(self, hidden: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """
-        Compute the process intensity for the given parameters at the given time.
+        Compute the process intensity for the given parameters at the given time:
+
+        .. math::
+            h(t) = h_i \exp(-\delta (t - t_{i-1} ))
 
         Args:
-            hidden:
-            s: current time
-            t: last event time
-            decay: intensity decay on interval :math:`[t, \infty)`
+            hidden: hidden state :math:`h_i` at the beginning of the interval
+            dt: elapsed time since previous event
+            decay: intensity decay :math:`\delta` on interval :math:`[t, \infty)`
 
         Returns:
             Intensity function value at time s.
         """
-        # Compute hidden state at time s
-        # print("s: {} | t: {} | h: {}".format(s.shape, t.shape, hidden.shape))
-        h_t = hidden*torch.exp(-decay*(s-t))
-        return self.intensity_layer(h_t)
+        h_t: Tensor = hidden*torch.exp(-decay*dt)
+        if h_t.ndimension() > 2:
+            h_t = h_t.transpose(1, 2)
+        lbda_t: Tensor = self.intensity_layer(h_t)
+        if h_t.ndimension() > 2:
+            lbda_t = lbda_t.transpose(1, 2)
+        return lbda_t
 
     def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor,
                      hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
@@ -107,22 +111,23 @@ class HawkesDecayRNN(nn.Module):
         counting :math:`[0, t_1)` and :math:`(t_N, tmax)`.
 
         Args:
-            seq_times: event sequence, including start time 0
+            seq_times: event sequence, including start time 0.
                 Shape: (N + 1) * batch
-            seq_types: event types, one-hot encoded
+            seq_types: event types, one-hot encoded.
                 Shape: N * batch * (K + 1)
-            batch_sizes: batch sizes for each event sequence tensor, by length
+            batch_sizes: batch sizes for each event sequence tensor, by length.
             hiddens:
                 Shape: (N + 1) * batch * hidden_size
             decays:
                 Shape: N + 1
-            tmax: time interval bound
+            tmax: time interval bound.
 
         Returns:
 
         """
         dt_sequence: Tensor = seq_times[1:] - seq_times[:-1]  # shape N * batch
         n_times = len(hiddens)
+        n_batch = dt_sequence.shape[1]
         intens_ev_times: Tensor = [
             self.intensity_layer(hiddens[i])
             for i in range(n_times)
@@ -141,18 +146,22 @@ class HawkesDecayRNN(nn.Module):
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
-        time_samples = seq_times[:-1] + dt_sequence * torch.rand_like(dt_sequence)  # shape N
+        M_mc = 10
+        # shape N * batch * M_mc
+        seq_times_ext = torch.cat((seq_times, tmax*torch.ones_like(seq_times[:1])))
+        dt_seq_ext = seq_times_ext[1:] - seq_times_ext[:-1]
+        taus = dt_seq_ext.unsqueeze(-1) * torch.rand(n_times + 1, n_batch, 1, M_mc)  # inter-event times samples
         intens_at_samples = [
-            self.compute_intensity(hiddens[i], decays[i],
-                                   time_samples[i, :batch_sizes[i]], seq_times[i, :batch_sizes[i]])
+            self.compute_intensity(hiddens[i].unsqueeze(-1), decays[i].unsqueeze(-1),
+                                   taus[i, :batch_sizes[i]])
             for i in range(n_times)
         ]
         intens_at_samples = nn.utils.rnn.pad_sequence(
             intens_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
-        total_intens_samples: Tensor = intens_at_samples.sum(dim=2, keepdim=True)
+        total_intens_samples: Tensor = intens_at_samples.mean(dim=3).sum(dim=2, keepdim=True)
         integral_estimates: Tensor = dt_sequence*total_intens_samples
-        second_term = integral_estimates.sum(dim=0)
-        res = (- first_term + second_term).mean()
+        second_term: Tensor = integral_estimates.sum(dim=0)
+        res: Tensor = (- first_term + second_term).mean()
         return res
 
 
