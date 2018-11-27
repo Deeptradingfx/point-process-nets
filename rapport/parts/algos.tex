@@ -5,13 +5,15 @@
 	
 Les réseaux de neurones sont implémentés en utilisant la librairie \textsf{PyTorch} \cite{paszke2017automatic}, permettant de faire du calcul tensoriel avec différentiation automatique (pour calculer les gradients).
 
-La log-vraisemblance d'une suite d'événements $\{(t_i,k_i)\}_i$ est donnée par la formule, démontrée dans \autocite{meiEisnerNeuralHawkes}:
+Une fonctionnelle de perte possible, utilisée dans \autocite{meiEisnerNeuralHawkes} pour entraîner le réseau sur des données réelles, est la log-vraisemblance \eqref{eq:likelihood} d'une suite d'événements $\{(t_i,k_i)\}_i$. La formule\footnotemark~suivante est démontrée \cite[15]{meiEisnerNeuralHawkes}: 
 \begin{equation}\label{eq:explicitLikelihood}
 \mathcal{L}\left(\{(t_i,k_i)\}_i\right)
 =
 \sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
 \end{equation}
 où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
+
+\footnotetext{Il faut noter ici que dans cette expression $\lambda_{t_i}^{k_i}$ est la valeur de l'intensité à l'instant $t_i$, juste avant l'événement $(t_i, k_i)$.}
 
 Le second terme est une intégrale. Elle peut être estimée par une méthode de Monte Carlo, comme le suggèrent \citeauthor{meiEisnerNeuralHawkes}. Plus de détails sur l'estimateur utilisé sont donnés dans l'annexe \autoref{sec:algoAppendix}.
 

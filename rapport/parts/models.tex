@@ -70,8 +70,6 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 \end{subequations}
 \footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = {(0,1,0)}^\intercal$}
 
-Le réseau s'entraîne en maximisant la log-vraisemblance \eqref{eq:likelihood}.
-
 La fonction d'activation $f$ est une approximation de classe $\mathcal C^1$ et strictement positive de la fonction ReLU ($x\mapsto \max(x,0)$), la fonction <<~Softmax~>>
 \[
 x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}),\quad\beta > 0.

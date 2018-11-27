@@ -15,17 +15,22 @@ SEED = 52
 torch.manual_seed(SEED)
 DEFAULT_BATCH_SIZE = 24
 DEFAULT_HIDDEN_SIZE = 3
+DEFAULT_LEARN_RATE = 0.015
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train the model.")
     parser.add_argument('-e', '--epochs', type=int, required=True,
                         help='number of epochs.')
+    parser.add_argument('-d', '--dim', type=int, required=True,
+                        help='number of event types.')
     parser.add_argument('-b', '--batch', type=int,
                         dest='batch_size', default=DEFAULT_BATCH_SIZE,
                         help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
+    parser.add_argument('--learning-rate', default=DEFAULT_LEARN_RATE,
+                        help="set the optimizer learning rate. (default {})".format(DEFAULT_LEARN_RATE))
     parser.add_argument('--hidden', type=int,
                         dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
-                        help='hidden node size. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
+                        help='number of hidden units. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
     parser.add_argument('--log-dir', type=str,
                         dest='log_dir', default='logs',
                         help="training logs target directory.")
@@ -42,7 +47,7 @@ if __name__ == '__main__':
     for i, s in enumerate(SYNTH_DATA_FILES):
         print("{:<4}{:<10}".format(i, s))
 
-    process_dim = 1
+    process_dim = args.dim
     print("Loading {}-dimensional process.".format(process_dim), end=' ')
     chosen_file_index = int(input("Which file ? Index: "))
     chosen_file = SYNTH_DATA_FILES[chosen_file_index]
@@ -67,13 +72,13 @@ if __name__ == '__main__':
     onehot_types = onehot_types.to(device)
 
     hidden_size = args.hidden_size
-    learning_rate = 0.015
+    learning_rate = args.learning_rate
     print("Hidden size: {}".format(hidden_size))
     model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
     total_sample_size = times_tensor.size(1)
-    train_size = 1000
+    train_size = 1400
     print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
     # Define training data
