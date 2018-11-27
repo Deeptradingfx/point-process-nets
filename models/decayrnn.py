@@ -101,8 +101,8 @@ class HawkesDecayRNN(nn.Module):
             lbda_t = lbda_t.transpose(1, 2)
         return lbda_t
 
-    def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor,
-                     hiddens: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
+    def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor, hiddens: List[Tensor],
+                     hiddens_decayed: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
         Negative log-likelihood
 
@@ -120,6 +120,8 @@ class HawkesDecayRNN(nn.Module):
             batch_sizes: batch sizes for each event sequence tensor, by length.
             hiddens:
                 Shape: (N + 1) * batch * hidden_size
+            hiddens_decayed: decayed hidden states.
+                Shape: (N + 1) * batch * hidden_size
             decays:
                 Shape: N + 1
             tmax: time interval bound.
@@ -131,14 +133,14 @@ class HawkesDecayRNN(nn.Module):
         device = seq_times.device
         n_times = len(hiddens)
         n_batch = dt_sequence.shape[1]
-        intens_ev_times: Tensor = [
-            self.intensity_layer(hiddens[i])
+        intens_at_evs: Tensor = [
+            self.intensity_layer(hiddens_decayed[i])
             for i in range(n_times)
-        ]
+        ]  # intensities just before the events occur
         # shape N * batch * input_dim
-        intens_ev_times = nn.utils.rnn.pad_sequence(
-            intens_ev_times, batch_first=True, padding_value=1.0)  # pad with 0 to get rid of the non-events
-        log_intensities = intens_ev_times.log()  # log intensities
+        intens_at_evs = nn.utils.rnn.pad_sequence(
+            intens_at_evs, batch_first=True, padding_value=1.0)  # pad with 0 to get rid of the non-events
+        log_intensities = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
         intens_ev_times_filtered = (log_intensities*seq_types[:-1]).sum(dim=2)
@@ -197,6 +199,8 @@ def generate_sequence(model: HawkesDecayRNN, tmax: float):
             ds: Tensor = -1./max_lbda*u1.log()
             # candidate future arrival time
             s = s.clone() + ds
+            if s > tmax:
+                break
             # adaptive sampling: always update the hidden state
             hidden = hidden*torch.exp(-decay*ds)
             intens_candidate = model.intensity_layer(hidden)

@@ -158,27 +158,30 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             # Reshape to a format the RNN can understand
             # N * batch
             max_batch_size = packed_times.batch_sizes[0]
-            hidd_decayed, decay = model.initialize_hidden(max_batch_size, device)
+            hidden_t, decay = model.initialize_hidden(max_batch_size, device)
             # Data records
             # hidd_decayed: 0
             # decay: 0
-            hiddens = []
-            decays = []
+            hiddens = []  # full, updated hidden states
+            hiddens_ti = []  # decayed hidden states
+            decays = []  # decay parameters
             for j in range(max_seq_length):
                 # event t_i is happening
                 sub_batch_size = packed_times.batch_sizes[j]
                 # hidden state just before this event
-                hidd_decayed = hidd_decayed[:sub_batch_size]
+                hidden_t = hidden_t[:sub_batch_size]
                 # time until next event t_{i+1}
                 dt_batch = batch_dt[j, :sub_batch_size]
                 types_batch = batch_seq_types[j, :sub_batch_size]
-                hidd, decay, hidd_decayed = model(dt_batch, types_batch, hidd_decayed)
+                hidd, decay, hidden_t = model(dt_batch, types_batch, hidden_t)
                 hiddens.append(hidd)
+                hiddens_ti.append(hidden_t)
                 decays.append(decay)
             train_data = {"hidden": hiddens,
                           "decay": decays}
             loss: Tensor = model.compute_loss(batch_seq_times.unsqueeze(2), batch_seq_types,
-                                              packed_times.batch_sizes, hiddens, decays, tmax)
+                                              packed_times.batch_sizes, hiddens, hiddens_ti,
+                                              decays, tmax)
             loss.backward()
             optimizer.step()
             epoch_loss.append(loss.item())
