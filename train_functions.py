@@ -39,7 +39,7 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
             tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
                                          file=sys.stdout, desc="Epoch %d" % e)
         else:
-            tr_loop_range = tqdm.trange(0, train_size, batch_size,
+            tr_loop_range = tqdm.trange(0, train_size, batch_size, ascii=True,
                                         file=sys.stdout, desc="Epoch %d" % e)
         # inter-arrival times
         for i in tr_loop_range:
@@ -137,7 +137,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
                                          file=sys.stdout, desc="Epoch %d" % e)
         else:
-            tr_loop_range = tqdm.trange(0, train_size, batch_size,
+            tr_loop_range = tqdm.trange(0, train_size, batch_size, ascii=True,
                                         file=sys.stdout, desc="Epoch %d" % e)
         # Full pass through the dataset
         for i in tr_loop_range:

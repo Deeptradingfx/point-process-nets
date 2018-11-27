@@ -90,15 +90,16 @@ torch.save(model.state_dict(), filepath)
 LOGS_PATH = os.path.abspath(args.log_dir)
 os.makedirs(LOGS_PATH, exist_ok=True)
 print("Logs directory: {}".format(LOGS_PATH))
-filename_loss_hist = "log_" + filename_base + ".pkl"
-print("Saving traning loss log to {}".format(filename_loss_hist))
-pickle.dump(loss_hist, filename_loss_hist)
+filepath_loss_hist = os.path.join(LOGS_PATH, "log_" + filename_base + ".pkl")
+print("Saving traning loss log to {}".format(filepath_loss_hist))
+with open(filepath_loss_hist, 'wb') as f:
+    pickle.dump(loss_hist, f)
 
 try:
     from train_functions import plot_loss
     fig = plot_loss(EPOCHS, loss_hist)
     filename_loss_plot = filename_base + "_loss_plot.png"
-    loss_plot_filepath = os.path.join(SAVED_MODELS_PATH, filename_loss_plot)
+    loss_plot_filepath = os.path.join(LOGS_PATH, filename_loss_plot)
     print("Saving loss plot to {}".format(loss_plot_filepath))
     fig.savefig(loss_plot_filepath)
 except ImportError:
