@@ -92,7 +92,7 @@ if __name__ == '__main__':
         now_timestamp = datetime.datetime.now().strftime(date_format)
         extra_tag = "{}d".format(process_dim)
         filename_base = "{}-{}-{}".format(model.__class__.__name__, extra_tag, now_timestamp)
-        filename_model_save = "loss_plot_" + filename_base + ".pth"
+        filename_model_save = filename_base + ".pth"
         filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
         print("Saving model state dict to {}".format(filepath))
         torch.save(model.state_dict(), filepath)
@@ -109,7 +109,7 @@ if __name__ == '__main__':
         try:
             from train_functions import plot_loss
             fig = plot_loss(EPOCHS, loss_hist)
-            filename_loss_plot = filename_base + "_loss_plot.png"
+            filename_loss_plot = "loss_plot_" + filename_base + ".png"
             loss_plot_filepath = os.path.join(LOGS_PATH, filename_loss_plot)
             print("Saving loss plot to {}".format(loss_plot_filepath))
             fig.savefig(loss_plot_filepath)

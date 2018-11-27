@@ -9,11 +9,8 @@ class HawkesDecayRNN(nn.Module):
     """
     Recurrent neural network (RNN) model using decaying hidden states between events, Decay-RNN.
 
-    We denote by :math:`N` the sequence lengths.
-
-
     .. math::
-        h(t) = h_i e^{-\delta_i(t-t_i)}\quad t\in (t_{i-1}, t_i]
+        h(t) = h_i e^{-\delta_i(t-t_i)},\quad t\in (t_{i-1}, t_i]
     """
 
     def __init__(self, input_size: int, hidden_size: int):
@@ -23,6 +20,7 @@ class HawkesDecayRNN(nn.Module):
             hidden_size: hidden layer dimension
         """
         super(HawkesDecayRNN, self).__init__()
+        self.trained_epochs = 0
         input_size += 1  # add the dimension of the beginning-of-sequence event type
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -93,7 +91,7 @@ class HawkesDecayRNN(nn.Module):
             decay: intensity decay :math:`\delta` on interval :math:`[t, \infty)`
 
         Returns:
-            Intensity function value at time s.
+            Intensity function value after dt.
         """
         h_t: Tensor = hidden*torch.exp(-decay*dt)
         if h_t.ndimension() > 2:
@@ -139,15 +137,15 @@ class HawkesDecayRNN(nn.Module):
         ]
         # shape N * batch * input_dim
         intens_ev_times = nn.utils.rnn.pad_sequence(
-            intens_ev_times, batch_first=True, padding_value=1.0)
-        # import pdb; pdb.set_trace()
+            intens_ev_times, batch_first=True, padding_value=1.0)  # pad with 0 to get rid of the non-events
+        log_intensities = intens_ev_times.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intens_ev_times_filtered = (intens_ev_times*seq_types[:-1]).sum(dim=2)
+        intens_ev_times_filtered = (log_intensities*seq_types[:-1]).sum(dim=2)
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)
-        first_term = intens_ev_times_filtered.log().sum(dim=0)
+        first_term = intens_ev_times_filtered.sum(dim=0)
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]

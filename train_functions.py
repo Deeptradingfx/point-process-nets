@@ -184,6 +184,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         epoch_loss_mean: float = np.mean(epoch_loss)
         print('epoch {}: train loss {:.4f}'.format(epoch, epoch_loss_mean))
         loss_hist.append(epoch_loss_mean)  # append the final loss of each epoch
+        model.trained_epochs += 1
     return loss_hist
 
 
