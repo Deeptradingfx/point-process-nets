@@ -3,7 +3,7 @@
 
 \begin{document}
 
-Un processus ponctuel est associé à un processus de comptage $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ est définie\footnotemark~par
+Un processus ponctuel est associé à un processus $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ vérifie\footnotemark
 \[
 	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) \underset{h\to 0}{=} \lambda_th + o(h).
 \]
@@ -16,11 +16,11 @@ On cherche ici à modéliser des \textit{séquences} d'événements ${\{(t_i,k_i
 Si on se donne un modèle $P = \PP(\,\cdot\,\mid \Theta)$ de la loi de nos séquences d'événements, la probabilité que $I$ événements $t_1<\cdots<t_I$ surviennent entre les instants $0$ et $T > 0$ a une log-vraisemblance
 \begin{equation}\label{eq:likelihood}
 	\mathcal{L} =
-	\log P(\{(t_i,k_i)\}_{i\in\llbracket 1,I\rrbracket}) =
+	\log P(\{(t_i,k_i)\}_{1\leq i\leq I}) =
 	\sum_{i=1}^{I} \log P((t_i,k_i)\mid \mathcal{F}_{t_{i-1}}, t_i)
 	+ \log P(t_{I+1}>T\mid \mathcal{F}_{t_{I}})
 \end{equation}
-où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t \leq t_i \}$.
+où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t_i \leq t \}$.
 
 
 \subsection{Modèle de base: le processus de Hawkes}
@@ -40,12 +40,12 @@ où:\begin{itemize}
 
 Les réseaux de neurones récurrents (\textit{recurrent neural networks}, RNN), sont des modèles de réseaux de neurones avec mémoire, qui prennent en compte l'historique entier de leurs \textit{inputs} au cours de leur entraînement, via un vecteur $h\in\RR^D$ (appelé état caché, \textit{hidden state}), mis à jour à chaque passage dans le réseau (voir la \autoref{fig:simpleRNN}). L'entier $D$ est la dimension cachée du réseau.
 
-Ces modèles récurrents sont surtout utilisés pour la compréhension de texte (vocabulaire, syntaxe\ldots), où ils se sont montrés assez efficaces. \cite{unreasonableEffectivenessRNN}
+Ces architectures récurrentes se sont montrées particulièrement efficace dans le domaine de la compréhension de texte (vocabulaire, syntaxe\ldots), le \textit{natural language processing} (NLP). \cite{unreasonableEffectivenessRNN}
 
 \begin{figure}
 	\centering
 	\includegraphics[height=0.2\textheight]{diagrams/rnn.pdf}
-	\caption{Les modèles RNN impliquent des boucle: la sortie $h_t$ est utilisée calculer $h_{t+1}$.}\label{fig:simpleRNN}
+	\caption{Les architectures RNN impliquent l'usage de boucles: la sortie $h_t$ est utilisée calculer $h_{t+1}$.}\label{fig:simpleRNN}
 \end{figure}
 
 \subsubsection{Réseau récurrent avec amortissement (Decay-RNN)}
@@ -54,7 +54,7 @@ On postule que l'intensité est de la forme
 \begin{equation}\label{eq:decayrnnhiddenstate}
 \lambda_t = f(W_l h(t))
 \end{equation}
-où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante du réseau RNN standard, inspiré du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
+où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante des architectures récurrentes standard, inspirée du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
 
 Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$, technique qui s'appelle encodage \textit{one-hot}\footnotemark.
 Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
