@@ -1,3 +1,6 @@
+"""
+Module for model training.
+"""
 import argparse
 import datetime
 import glob
@@ -7,7 +10,7 @@ import pickle
 import torch
 from torch import optim
 
-from load_synth_data import process_loaded_sequences, one_hot_embedding
+from utils.load_synth_data import process_loaded_sequences, one_hot_embedding
 from models.decayrnn import HawkesDecayRNN
 from train_functions import train_decayrnn
 
@@ -26,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch', type=int,
                         dest='batch_size', default=DEFAULT_BATCH_SIZE,
                         help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
-    parser.add_argument('--learning-rate', default=DEFAULT_LEARN_RATE,
+    parser.add_argument('--learning-rate', default=DEFAULT_LEARN_RATE, type=float,
                         help="set the optimizer learning rate. (default {})".format(DEFAULT_LEARN_RATE))
     parser.add_argument('--hidden', type=int,
                         dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,

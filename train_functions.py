@@ -1,3 +1,6 @@
+"""
+Training loops for the various models.
+"""
 import torch
 from torch import Tensor
 from torch import nn

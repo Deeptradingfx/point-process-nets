@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch import Tensor
 from typing import Tuple, List
-from load_synth_data import one_hot_embedding
+from utils.load_synth_data import one_hot_embedding
 
 
 class HawkesDecayRNN(nn.Module):
@@ -13,7 +13,7 @@ class HawkesDecayRNN(nn.Module):
         h(t) = h_i e^{-\delta_i(t-t_i)},\quad t\in (t_{i-1}, t_i]
     """
 
-    def __init__(self, input_size: int, hidden_size: int):
+    def __init__(self, input_size: int, hidden_size: int, intens_bias: bool = False):
         """
         Args:
             input_size: process dimension K
@@ -31,7 +31,7 @@ class HawkesDecayRNN(nn.Module):
             nn.Linear(input_size + hidden_size, 1),
             nn.Softplus(beta=3.0))
         self.intensity_layer = nn.Sequential(
-            nn.Linear(hidden_size, input_size, bias=False),
+            nn.Linear(hidden_size, input_size, bias=intens_bias),
             nn.Softplus(beta=3.0))
 
     def forward(self, dt: Tensor, seq_types: Tensor, hidden_ti: Tensor) -> Tuple[Tensor, Tensor, Tensor]:

@@ -5,7 +5,7 @@
 
 Un processus ponctuel est associé à un processus $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ vérifie\footnotemark
 \[
-	P(N_{t+h} - N_t = 1\mid \mathcal{F}_t) \underset{h\to 0}{=} \lambda_th + o(h).
+	\EE [N_{t+h} - N_t \mid \mathcal{F}_t] \underset{h\to 0}{=} \lambda_th + o(h).
 \]
 \footnotetext{On remarquera que comme $P(N_{t+h}-N_t > 1\mid \mathcal{F}_t) = o(h)$, on a aussi, en notation synthétique, $\EE[dN_t\mid\mathcal{F}_t] = \lambda_t\,dt$.}
 
@@ -25,7 +25,7 @@ où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t_i \leq t \}$.
 
 \subsection{Modèle de base: le processus de Hawkes}
 
-Le processus de Hawkes est un modèle élémentaire de processus ponctuel dépendant de son propre passé. Conditionnellement au passé du processus, son intensité s'écrit sous la forme (vectorielle)
+Le processus de Hawkes est un modèle élémentaire de processus ponctuel dépendant de son propre passé. Pour un processus de Hawkes \textit{linéaire}, le processus d'intensité s'écrit sous la forme (vectorielle)
 \begin{equation}
 \lambda_t = \mu_t + \int_0^t g(t-s)\,dN_s
 \end{equation}
@@ -33,7 +33,7 @@ où:\begin{itemize}
 	\item $N^i_t$ est le nombre total d'événements de type $i$ (la mesure $dN^i_t$ compte le nombre d'événements entre $t$ et $t+dt$),
 	\item $\lambda_t^i$ est l'intensité des événements de type $i$,
 	\item $\mu^i_t$ est l'intensité de base des événements de type $i$,
-	\item $g(t) \in \RR^{K\times K}$ est le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$.
+	\item $g(t) \in \RR^{K\times K}$ est le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$, et est causal ($g_{ij} = 0$ sur $(-\infty, 0)$).
 \end{itemize} 
 
 \subsection{Réseaux de neurones récurrents}
