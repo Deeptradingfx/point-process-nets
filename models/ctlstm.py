@@ -18,9 +18,12 @@ class NeuralCTLSTM(nn.Module):
 
     def __init__(self, input_size: int, hidden_dim: int):
         super(NeuralCTLSTM, self).__init__()
+        self.process_dim = input_size
+        self.trained_epochs = 0
         input_size += 1
-        self.input_size = input_size
+        self.input_size = input_size  # embedding input size
         self.hidden_dim = hidden_dim
+        self.embed = nn.Embedding(input_size, self.process_dim, padding_idx=self.process_dim)
         self.input_g = nn.Sequential(
             nn.Linear(input_size + hidden_dim, hidden_dim),
             nn.Sigmoid()

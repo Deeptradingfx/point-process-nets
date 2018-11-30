@@ -9,6 +9,7 @@ import numpy as np
 import sys
 from torch.optim import Optimizer
 from models.ctlstm import NeuralCTLSTM
+from models import decayrnn
 from models.decayrnn import HawkesDecayRNN
 from utils.load_synth_data import one_hot_embedding
 from typing import List, Dict, Tuple
@@ -164,8 +165,8 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             # Get the batch data
             batch_seq_lengths: Tensor = seq_lengths[i:(i + batch_size)]
             max_seq_length = batch_seq_lengths[0]
-            batch_seq_times = seq_times[i:(i + batch_size), :max_seq_length+1]
-            batch_seq_types = seq_types[i:(i + batch_size), :max_seq_length+1]
+            batch_seq_times = seq_times[i:(i + batch_size), :max_seq_length + 1]
+            batch_seq_types = seq_types[i:(i + batch_size), :max_seq_length + 1]
             # Inter-event time intervals
             batch_dt = batch_seq_times[:, 1:] - batch_seq_times[:, :-1]
             # print("max seq. lengths: {}".format(max_seq_length))
@@ -186,8 +187,8 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
                 # hidden state just before this event
                 hidden_t = hidden_t[:sub_batch_size]
                 # time until next event t_{i+1}
-                dt_sub_batch = packed_dt.data[beg_index:(beg_index+sub_batch_size)]
-                types_sub_batch = packed_types.data[beg_index:(beg_index+sub_batch_size)]
+                dt_sub_batch = packed_dt.data[beg_index:(beg_index + sub_batch_size)]
+                types_sub_batch = packed_types.data[beg_index:(beg_index + sub_batch_size)]
                 hidd, decay, hidden_t = model(dt_sub_batch, types_sub_batch, hidden_t)
                 beg_index += sub_batch_size
                 hiddens.append(hidd)
@@ -213,7 +214,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
 def plot_loss(epochs: int, loss_hist, title: str = None, log: bool = False):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(8, 4), dpi=100)
-    epochs_range = list(range(1, epochs+1))
+    epochs_range = list(range(1, epochs + 1))
     ax.plot(epochs_range, loss_hist, color='red',
             linewidth=.7, marker='.', markersize=6)
     ax.set_xlabel("Epochs")
