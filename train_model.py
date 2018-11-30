@@ -10,14 +10,14 @@ import pickle
 import torch
 from torch import optim
 
-from utils.load_synth_data import process_loaded_sequences, one_hot_embedding
+from utils.load_synth_data import process_loaded_sequences
 from models.decayrnn import HawkesDecayRNN
 from train_functions import train_decayrnn
 
 SEED = 52
 torch.manual_seed(SEED)
 DEFAULT_BATCH_SIZE = 24
-DEFAULT_HIDDEN_SIZE = 3
+DEFAULT_HIDDEN_SIZE = 2
 DEFAULT_LEARN_RATE = 0.015
 
 if __name__ == '__main__':
@@ -34,6 +34,8 @@ if __name__ == '__main__':
     parser.add_argument('--hidden', type=int,
                         dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
                         help='number of hidden units. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
+    parser.add_argument('--train-size', type=int,
+                        help='override the size of the training dataset.')
     parser.add_argument('--log-dir', type=str,
                         dest='log_dir', default='logs',
                         help="training logs target directory.")
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
     print("Available files:")
     for i, s in enumerate(SYNTH_DATA_FILES):
-        print("{:<4}{:<10}".format(i, s))
+        print("{:<8}{:<8}".format(i, s))
 
     process_dim = args.dim
     print("Loading {}-dimensional process.".format(process_dim), end=' ')
@@ -67,12 +69,10 @@ if __name__ == '__main__':
 
     device = torch.device('cuda:0' if USE_CUDA else 'cpu')
     print("Training on device {}".format(device))
-    times_tensor, seq_types, seq_lengths = process_loaded_sequences(loaded_hawkes_data)
-    onehot_types = one_hot_embedding(seq_types, process_dim + 1)
-    times_tensor = times_tensor.to(device)
+    seq_times, seq_types, seq_lengths = process_loaded_sequences(loaded_hawkes_data, process_dim, tmax)
+    seq_times = seq_times.to(device)
     seq_types = seq_types.to(device)
     seq_lengths = seq_lengths.to(device)
-    onehot_types = onehot_types.to(device)
 
     hidden_size = args.hidden_size
     learning_rate = args.learning_rate
@@ -80,21 +80,24 @@ if __name__ == '__main__':
     model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
-    total_sample_size = times_tensor.size(1)
-    train_size = 1400
+    total_sample_size = seq_times.size(1)
+    if args.train_size:
+        train_size = args.train_size
+    else:
+        train_size = 1200
     print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
     # Define training data
-    train_times_tensor = times_tensor[:, :train_size]
-    train_onehot_types = onehot_types[:, :train_size]
+    train_times_tensor = seq_times[:, :train_size]
+    train_seq_types = seq_types[:, :train_size]
     train_seq_lengths = seq_lengths[:train_size]
 
     # Training parameters
     BATCH_SIZE = args.batch_size
     EPOCHS = args.epochs
 
-    loss_hist = train_decayrnn(model, optimizer, train_times_tensor, train_onehot_types, train_seq_lengths,
-                               tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
+    loss_hist, train_hist = train_decayrnn(model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
+                                           tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
 
     if args.save:
         # Model file dump

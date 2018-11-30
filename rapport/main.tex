@@ -62,9 +62,13 @@ Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événem
 
 \section{Résultats}
 
+\subsection{Données synthétiques}
+
+Les modèles ont été entraînés sur des jeux de données synthétiques générées à partir d'un processus de Hawkes linéaire à noyau exponentiel, en utilisant la librairie \verb|tick| pour Python \cite{2017arXiv170703003B}.
+
 \begin{figure}[h]
-	\includegraphics[width=\linewidth]{../results/seq_length_distrib_Decay-RNN-1d-hidden_2.pdf}
-	\caption{Distribution du nombre d'événements. Hawkes unidimensionnel vs. Decay-RNN avec $D=2$.}\label{fig:hawkesDecayRNNlengthDistrib}
+	\includegraphics[width=\linewidth]{../results/seq_length_distrib_Decay-RNN-2d-hidden_16.pdf}
+	\caption{Distribution du nombre d'événements. Hawkes bidimensionnel vs. Decay-RNN avec $D=12$.}\label{fig:hawkesDecayRNNlengthDistrib}
 \end{figure}
 
 

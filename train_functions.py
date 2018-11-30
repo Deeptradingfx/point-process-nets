@@ -10,13 +10,14 @@ import sys
 from torch.optim import Optimizer
 from models.ctlstm import NeuralCTLSTM
 from models.decayrnn import HawkesDecayRNN
-from typing import List
+from utils.load_synth_data import one_hot_embedding
+from typing import List, Dict, Tuple
 
 
 def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
                         seq_times: Tensor, seq_types: Tensor,
                         seq_lengths: Tensor, tmax: float, batch_size: int,
-                        epochs: int, use_jupyter: bool = False):
+                        n_epochs: int, use_jupyter: bool = False):
     """Train the Neural Hawkes CTLSTM on input sequence
 
     Args:
@@ -27,15 +28,21 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
         seq_lengths: real sequence lengths
         tmax: max time horizon
         batch_size: batch size
-        epochs: number of epochs
+        n_epochs: number of epochs
         use_jupyter: use tqdm's Jupyter mode
     """
     model.train()  # ensure model is in training mode
     print("Batch size {}".format(batch_size))
-    print("Number of epochs {}".format(epochs))
+    print("Number of epochs {}".format(n_epochs))
+    # Reorder by decreasing order for PyTorch to understand
+    seq_lengths, reorder_indices_ = seq_lengths.sort(descending=True)
+    # Reorder by descending sequence length
+    seq_times = seq_times[:, reorder_indices_]
+    seq_types = seq_types[:, reorder_indices_]
+
     train_size = seq_times.size(1)
     loss_hist = []
-    for e in range(1, epochs + 1):
+    for e in range(1, n_epochs + 1):
         # Epoch loop
         epoch_loss = []
         if use_jupyter:
@@ -113,7 +120,7 @@ def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
 
 def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tensor, seq_types: Tensor,
                    seq_lengths: Tensor, tmax: float, batch_size: int, n_epochs: int,
-                   use_cuda: bool = False, use_jupyter: bool = False) -> List[float]:
+                   use_cuda: bool = False, use_jupyter: bool = False) -> Tuple[List[float], List[dict]]:
     """
     Train the HawkesDecayRNN model.
 
@@ -133,11 +140,18 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
     model.train()  # ensure model is in training mode
     print("Batch size {}".format(batch_size))
     print("Number of epochs {}".format(n_epochs))
-    train_size = seq_times.size(1)
+    # Reorder by decreasing sequence length for pack_padded_sequence to understand
+    seq_lengths, reorder_indices_ = seq_lengths.sort(descending=True)
+    seq_times = seq_times[reorder_indices_]
+    seq_types = seq_types[reorder_indices_]
+    train_size = seq_times.size(0)
+    print("Train size: {}".format(train_size))
     loss_hist = []
+    train_hist = []
     for epoch in range(1, n_epochs + 1):
         # Epoch loop
         epoch_loss = []
+        train_hist = []
         if use_jupyter:
             tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
                                          file=sys.stdout, desc="Epoch %d" % epoch)
@@ -147,44 +161,45 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         # Full pass through the dataset
         for i in tr_loop_range:
             optimizer.zero_grad()
-            batch_seq_lengths = seq_lengths[i:(i + batch_size)]
+            # Get the batch data
+            batch_seq_lengths: Tensor = seq_lengths[i:(i + batch_size)]
             max_seq_length = batch_seq_lengths[0]
-            batch_seq_times = seq_times[:max_seq_length+1, i:(i + batch_size)]
-            batch_seq_types = seq_types[:max_seq_length+1, i:(i + batch_size)]
+            batch_seq_times = seq_times[i:(i + batch_size), :max_seq_length+1]
+            batch_seq_types = seq_types[i:(i + batch_size), :max_seq_length+1]
             # Inter-event time intervals
-            batch_dt = batch_seq_times[1:] - batch_seq_times[:-1]
+            batch_dt = batch_seq_times[:, 1:] - batch_seq_times[:, :-1]
             # print("max seq. lengths: {}".format(max_seq_length))
             # print("dt shape: {}".format(dt_sequence.shape))
-            # Trim the sequence to its real length
-            packed_times = nn.utils.rnn.pack_padded_sequence(batch_dt, batch_seq_lengths)
-            # packed_types = nn.utils.rnn.pack_padded_sequence(sub_seq_types, sub_seq_lengths)
-            # Reshape to a format the RNN can understand
-            # N * batch
-            max_batch_size = packed_times.batch_sizes[0]
-            hidden_t, decay = model.initialize_hidden(max_batch_size, device)
+            # Pack the sequences
+            packed_dt = nn.utils.rnn.pack_padded_sequence(batch_dt, batch_seq_lengths, batch_first=True)
+            packed_types = nn.utils.rnn.pack_padded_sequence(batch_seq_types, batch_seq_lengths, batch_first=True)
+            max_pack_batch_size = packed_dt.batch_sizes[0]
+            hidden_t, decay = model.initialize_hidden(max_pack_batch_size, device)
             # Data records
-            # hidd_decayed: 0
-            # decay: 0
-            hiddens = []  # full, updated hidden states
-            hiddens_ti = []  # decayed hidden states
-            decays = []  # decay parameters
+            hiddens = [hidden_t]  # full, updated hidden states
+            hiddens_ti = [hidden_t]  # decayed hidden states
+            decays = [decay]  # decay parameters
+            beg_index = 0
             for j in range(max_seq_length):
                 # event t_i is happening
-                sub_batch_size = packed_times.batch_sizes[j]
+                sub_batch_size = packed_dt.batch_sizes[j]
                 # hidden state just before this event
                 hidden_t = hidden_t[:sub_batch_size]
                 # time until next event t_{i+1}
-                dt_batch = batch_dt[j, :sub_batch_size]
-                types_batch = batch_seq_types[j, :sub_batch_size]
-                hidd, decay, hidden_t = model(dt_batch, types_batch, hidden_t)
+                dt_sub_batch = packed_dt.data[beg_index:(beg_index+sub_batch_size)]
+                types_sub_batch = packed_types.data[beg_index:(beg_index+sub_batch_size)]
+                hidd, decay, hidden_t = model(dt_sub_batch, types_sub_batch, hidden_t)
+                beg_index += sub_batch_size
                 hiddens.append(hidd)
                 hiddens_ti.append(hidden_t)
                 decays.append(decay)
-            train_data = {"hidden": hiddens,
-                          "decay": decays}
-            loss: Tensor = model.compute_loss(batch_seq_times.unsqueeze(2), batch_seq_types,
-                                              packed_times.batch_sizes, hiddens, hiddens_ti,
+            batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
+            batch_onehot = batch_onehot[:, :, :model.process_dim]
+            loss: Tensor = model.compute_loss(batch_seq_times, batch_onehot,
+                                              packed_dt.batch_sizes, hiddens, hiddens_ti,
                                               decays, tmax)
+            train_hist.append({"hidden": hiddens,
+                               "decay": decays})
             loss.backward()
             optimizer.step()
             epoch_loss.append(loss.item())
@@ -192,7 +207,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
         print('epoch {}: train loss {:.4f}'.format(epoch, epoch_loss_mean))
         loss_hist.append(epoch_loss_mean)  # append the final loss of each epoch
         model.trained_epochs += 1
-    return loss_hist
+    return loss_hist, train_hist
 
 
 def plot_loss(epochs: int, loss_hist, title: str = None):
