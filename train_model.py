@@ -16,7 +16,7 @@ from train_functions import train_decayrnn
 
 SEED = 52
 torch.manual_seed(SEED)
-DEFAULT_BATCH_SIZE = 24
+DEFAULT_BATCH_SIZE = 32
 DEFAULT_HIDDEN_SIZE = 2
 DEFAULT_LEARN_RATE = 0.015
 

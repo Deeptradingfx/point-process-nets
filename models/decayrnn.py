@@ -95,10 +95,7 @@ class HawkesDecayRNN(nn.Module):
         Returns:
             Intensity function value after dt.
         """
-        try:
-            h_t: Tensor = hidden*torch.exp(-decay*dt)
-        except Exception:
-            import pdb; pdb.set_trace()
+        h_t: Tensor = hidden*torch.exp(-decay*dt)
         if h_t.ndimension() > 2:
             h_t = h_t.transpose(1, 2)
         lbda_t: Tensor = self.intensity_layer(h_t)
@@ -136,7 +133,7 @@ class HawkesDecayRNN(nn.Module):
         """
         n_batch = seq_times.size(0)
         n_times = seq_times.size(1) - 1
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape N * batch
         device = seq_times.device
         intens_at_evs: Tensor = [
@@ -160,18 +157,21 @@ class HawkesDecayRNN(nn.Module):
         n_mc_samples = 10
         # shape N * batch * M_mc
         taus = torch.rand(n_batch, n_times, n_mc_samples).to(device)
-        taus = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
-        intens_at_samples = [
-            self.compute_intensity(hiddens[i][:batch_sizes[i]].unsqueeze(-1), decays[i][:batch_sizes[i]].unsqueeze(-1),
-                                   taus[:batch_sizes[i], i].unsqueeze(1))
-            for i in range(n_times)
-        ]
-        intens_at_samples = nn.utils.rnn.pad_sequence(
-            intens_at_samples, padding_value=0.0)  # shape N * batch * (K + 1)
-        total_intens_samples: Tensor = intens_at_samples.mean(dim=3).sum(dim=2)
-        integral_estimates: Tensor = dt_seq*total_intens_samples
-        second_term: Tensor = integral_estimates.sum(dim=1)
-        res: Tensor = (- first_term + second_term).mean()
+        taus: Tensor = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
+        intens_at_samples = []
+        for i in range(n_times):
+            # print(i)
+            # print("batchsize", batch_sizes[i])
+            # print("next one", batch_sizes[i+1], "with hidden", hiddens[i+1].shape)
+            v = self.compute_intensity(hiddens[i].unsqueeze(-1), decays[i].unsqueeze(-1),
+                                       taus[:batch_sizes[i], i].unsqueeze(1))
+            intens_at_samples.append(v)
+        intens_at_samples: Tensor = nn.utils.rnn.pad_sequence(
+            intens_at_samples, padding_value=0.0)  # shape batch * N * K * MC
+        total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape batch * N * MC
+        integral_estimates: Tensor = torch.sum(dt_seq[:, :, None]*total_intens_samples, dim=1)
+        second_term: Tensor = integral_estimates.mean(dim=1)
+        res: Tensor = (- first_term + second_term).mean()  # average over the bath
         return res
 
 

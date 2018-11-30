@@ -176,9 +176,9 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             max_pack_batch_size = packed_dt.batch_sizes[0]
             hidden_t, decay = model.initialize_hidden(max_pack_batch_size, device)
             # Data records
-            hiddens = [hidden_t]  # full, updated hidden states
-            hiddens_ti = [hidden_t]  # decayed hidden states
-            decays = [decay]  # decay parameters
+            hiddens = []  # full, updated hidden states
+            hiddens_ti = []  # decayed hidden states
+            decays = []  # decay parameters
             beg_index = 0
             for j in range(max_seq_length):
                 # event t_i is happening
