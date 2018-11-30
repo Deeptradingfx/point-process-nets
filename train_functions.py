@@ -210,7 +210,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
     return loss_hist, train_hist
 
 
-def plot_loss(epochs: int, loss_hist, title: str = None):
+def plot_loss(epochs: int, loss_hist, title: str = None, log: bool = False):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(1, 1, figsize=(8, 4), dpi=100)
     epochs_range = list(range(1, epochs+1))
@@ -218,6 +218,8 @@ def plot_loss(epochs: int, loss_hist, title: str = None):
             linewidth=.7, marker='.', markersize=6)
     ax.set_xlabel("Epochs")
     ax.set_ylabel("Loss")
+    if log:
+        ax.set_yscale('log')
     if title:
         ax.set_title = title
     return fig

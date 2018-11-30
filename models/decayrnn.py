@@ -175,7 +175,7 @@ class HawkesDecayRNN(nn.Module):
         return res
 
 
-class Generator:
+class HawkesRNNGen:
     """
     Event sequence generator for the Hawkes Decay-RNN model.
 
@@ -272,6 +272,31 @@ class Generator:
                     self.event_times.append(last_t)
                     self.event_types.append(k)
                 max_lbda = self.get_max_lbda(hidden)
+
+    def plot_events_and_intensity(self):
+        import matplotlib.pyplot as plt
+        model = self.model
+        gen_seq_times = self.event_times
+        gen_seq_types = self.event_types
+        sequence_length = len(gen_seq_times)
+        print("no. of events: {}".format(sequence_length))
+        evt_times = np.array(gen_seq_times)
+        evt_types = np.array(gen_seq_types)
+        proc_dim = self.dim_process
+        fig, (ax0, ax1) = plt.subplots(2, 1, sharex='all', dpi=110,
+                                       figsize=(10, 6), gridspec_kw={"height_ratios": (4, 1)})
+        ts_y = 0.5 * np.random.rand(sequence_length)
+        inpt_size = model.input_size
+        for k in range(inpt_size):
+            mask = evt_types == k
+            ax1.scatter(evt_times[mask], ts_y[mask], s=9,
+                        label="{}".format(k), alpha=0.7)
+            ax1.vlines(evt_times[mask], -0.6, 1.6, linewidth=0.3, linestyles='--', alpha=0.5)
+        ax1.set_ylim((-0.6, 1.2))
+        ax1.legend()
+        intens_hist = torch.stack(self.intens_hist)[:, 0].numpy()
+        ax0.plot(self.all_times_, intens_hist, linewidth=.7)
+        return fig
 
 
 def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
