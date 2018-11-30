@@ -80,7 +80,7 @@ if __name__ == '__main__':
     model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
-    total_sample_size = seq_times.size(1)
+    total_sample_size = seq_times.size(0)
     if args.train_size:
         train_size = args.train_size
     else:
@@ -88,16 +88,17 @@ if __name__ == '__main__':
     print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
     # Define training data
-    train_times_tensor = seq_times[:, :train_size]
-    train_seq_types = seq_types[:, :train_size]
+    train_times_tensor = seq_times[:train_size]
+    train_seq_types = seq_types[:train_size]
     train_seq_lengths = seq_lengths[:train_size]
 
     # Training parameters
     BATCH_SIZE = args.batch_size
     EPOCHS = args.epochs
 
-    loss_hist, train_hist = train_decayrnn(model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
-                                           tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
+    loss_hist, train_hist = train_decayrnn(
+        model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
+        tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
 
     if args.save:
         # Model file dump
