@@ -7,17 +7,19 @@
 
 \subsection{Calcul de la log-vraisemblance}
 
-La log-vraisemblance donnée par la relation \eqref{eq:explicitLikelihood} comporte deux termes: une somme de logarithmes d'intensités et l'intégrale $\int_0^T\lambda_t\,dt$ de l'intensité totale du processus (la somme des intensités de chaque type).
+La log-vraisemblance donnée par la relation \eqref{eq:explicitLikelihood} comporte deux termes: une somme de logarithmes d'intensités et l'intégrale $\int_0^T\lambda_t\cdot\mathbf{1}\,dt$ de l'intensité totale du processus.
 
 \paragraph{Somme des log-intensités.} Le premier terme pose un léger problème au niveau de l'implémentation. Le calcul des intensités ${(\lambda_{t_i})}_i$ donne un tenseur \verb|intens_ti| de format $I\times B\times K$, avec $B$ la taille du \textit{batch} (le sous-ensemble d'entraînement que l'on est en train de traiter). Extraire les $\lambda^{k_i}_{t_i}$ ne peut pas se faire par indexation (par exemple en faisant \verb|intens_ti[:, :, event_types]|).
 
-L'astuce utilisée exploite la représentation des types $k_i$ par encodage \textit{one-hot} avec des vecteurs $x_i\in{\{0,1\}}^K$. En notant $\odot$ le produit terme-à-terme, la relation
+L'astuce utilisée exploite la représentation des types $k_i$ par encodage \textit{one-hot} avec des vecteurs $u_i\in{\{0,1\}}^K$, définis par $(u_i)_j = \mathds{1}_{\{k_i = j\}}$.\footnotemark En notant $\odot$ le produit terme-à-terme, la relation
 \[
-\lambda^{k_i}_{t_i} = \sum_{k=1}^K {(\lambda_{t_i} \odot x_i)}_k,
+\lambda^{k_i}_{t_i} = \sum_{k=1}^K {(\lambda_{t_i} \odot u_i)}_k,
 \]
 permet d'obtenir les intensités par produit et réduction.
+\footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $u_i = {(0,1,0)}^\intercal$}
 
-\paragraph{Estimation de l'intégrale.} Étant donné une famille iid de variables aléatoires $\tau^{(m)}\sim\mathcal{U}([0,T])$ indépendantes de la filtration $\mathds{F}$, la quantité 
+
+\paragraph{Estimation de l'intégrale.} Étant donné une famille de variables aléatoires iid $\tau^{(m)}\sim\mathcal{U}([0,T])$ indépendantes de la filtration $\mathds{F}$, la quantité 
 \[
 \bar{\Lambda}_M = \frac{1}{M}\sum_{m=1}^{M}T\lambda_{\tau^{(m)}}\cdot\mathbf 1
 \]

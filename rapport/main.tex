@@ -1,12 +1,13 @@
 % !TeX spellcheck = fr_FR
 \documentclass[11pt]{article}
-\usepackage[a4paper,hmargin=3.6cm]{geometry}
+\usepackage[a4paper,hmargin=3.2cm]{geometry}
 \usepackage{subfiles}
 \usepackage{polyglossia}
 \setdefaultlanguage{french}
 
 \usepackage{mathtools}
 \usepackage{amsfonts,amssymb}
+\usepackage{dsfont}
 \usepackage{stmaryrd}
 \usepackage{graphicx}
 \usepackage{titlesec}
@@ -14,12 +15,19 @@
 	page,title
 ]{appendix}
 
-\usepackage{dsfont}
 
 \usepackage{csquotes}
-\usepackage[backend=biber,sorting=nyt]{biblatex}
+\usepackage[
+backend=biber,
+style=alphabetic,
+sorting=nyt
+]{biblatex}
 
 \usepackage{hyperref}
+
+\usepackage{chngcntr}
+\counterwithin{figure}{section}
+
 
 \title{\textbf{Processus ponctuels récurrents}\\
 	\textit{Rapport de projet}  
@@ -47,7 +55,7 @@
 
 \section{Introduction}
 
-On cherche à modéliser des flux d'événements discrets, arrivant à des instants $t_i$ et associés à des \textit{types} $k_i$, et dont l'évolution dépend du passé: des événements de certains types peut en inciter ou \textit{exciter} d'autres (dans le sens où leur arrivée devient plus probable dans le futur). Par exemple, ces événements peuvent être des messages sur un réseau social comme Twitter (le type pourrait alors être la <<~popularité~>> de l'auteur du message, et chaque message en inciterait d'autres sous la forme de \textit{retweets}), ou des ordres sur un marché financier, où les types seraient s'il s'agit d'un achat (\textit{bid}), d'une vente (\textit{ask}), d'une annulation (\textit{cancel}), au prix du marché ou exécuté à partir d'un certain prix.
+On cherche à modéliser des flux d'événements, arrivant à des instants différents et portant des caractéristiques, et dont l'avenir dépend de l'historique. Des événements de certains types peuvent en inciter ou \textit{exciter} d'autres (dans le sens où leur arrivée devient plus probable dans le futur). Par exemple, ces événements peuvent être des messages sur un réseau social comme Twitter (le type pourrait alors être la <<~popularité~>> de l'auteur du message, et chaque message en inciterait d'autres sous la forme de \textit{retweets}), ou des ordres sur un marché financier, où les types seraient s'il s'agit d'un achat (\textit{bid}), d'une vente (\textit{ask}), d'une annulation (\textit{cancel}), au prix du marché ou exécuté à partir d'un certain prix.
 
 Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événements discrets est celle des \textit{processus ponctuels}. Un modèle usuel pour modéliser des flux d'événements avec dépendance du futur sur le passé est celui de Hawkes, où les intensités sont des fonctions assez simples des événements passés. On se propose ici d'explorer des modèles inspirés de Hawkes, s'appuyant sur des réseaux de neurones récurrents permettant d'obtenir des structures de dépendance plus riches, et les appliquer à la prédiction des natures et temps d'arrivée d'événements futurs.
 
@@ -62,14 +70,7 @@ Une classe de modèles statistiques utiles pour modéliser l'arrivée d'événem
 
 \section{Résultats}
 
-\subsection{Données synthétiques}
-
-Les modèles ont été entraînés sur des jeux de données synthétiques générées à partir d'un processus de Hawkes linéaire à noyau exponentiel, en utilisant la librairie \verb|tick| pour Python \cite{2017arXiv170703003B}.
-
-\begin{figure}[h]
-	\includegraphics[width=\linewidth]{../results/seq_length_distrib_Decay-RNN-2d-hidden_16.pdf}
-	\caption{Distribution du nombre d'événements. Hawkes bidimensionnel vs. Decay-RNN avec $D=12$.}\label{fig:hawkesDecayRNNlengthDistrib}
-\end{figure}
+\subfile{parts/results}
 
 
 \printbibliography

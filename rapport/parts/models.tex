@@ -3,17 +3,17 @@
 
 \begin{document}
 
-Un processus ponctuel est associé à un processus $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ vérifie\footnotemark
+Un processus ponctuel est associé à un processus $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ vérifie
 \[
 	\EE [N_{t+h} - N_t \mid \mathcal{F}_t] \underset{h\to 0}{=} \lambda_th + o(h).
 \]
-\footnotetext{On remarquera que comme $P(N_{t+h}-N_t > 1\mid \mathcal{F}_t) = o(h)$, on a aussi, en notation synthétique, $\EE[dN_t\mid\mathcal{F}_t] = \lambda_t\,dt$.}
+ou succinctement $\EE[dN_t] = \lambda_t\,dt$.
 
 Ainsi, plus l'intensité $\lambda_t$ est élevée, plus la probabilité d'avoir un événement dans l'immédiat est élevée.
 
 On cherche ici à modéliser des \textit{séquences} d'événements ${\{(t_i,k_i)\}}_i$ arrivant à des instants distincts $0<t_1 < \cdots$ et de \textit{type} $k_i$.
 
-Si on se donne un modèle $P = \PP(\,\cdot\,\mid \Theta)$ de la loi de nos séquences d'événements, la probabilité que $I$ événements $t_1<\cdots<t_I$ surviennent entre les instants $0$ et $T > 0$ a une log-vraisemblance
+Si on se donne un modèle $P = \PP(\,\cdot\,\mid \Theta)$ de la loi de nos séquences d'événements, la probabilité que $I$ événements $t_1<\cdots<t_I$ de types $k_i$ surviennent entre les instants $0$ et $T > 0$ a une log-vraisemblance
 \begin{equation}\label{eq:likelihood}
 	\mathcal{L} =
 	\log P(\{(t_i,k_i)\}_{1\leq i\leq I}) =
@@ -34,13 +34,15 @@ où:\begin{itemize}
 	\item $\lambda_t^i$ est l'intensité des événements de type $i$,
 	\item $\mu^i_t$ est l'intensité de base des événements de type $i$,
 	\item $g(t) \in \RR^{K\times K}$ est le \textit{noyau} d'excitation: le coefficient $g_{ij} \geq 0$ contrôle le degré selon lequel les événements de type $j$ influencent l'arrivée des événements de type $j$, et est causal ($g_{ij} = 0$ sur $(-\infty, 0)$).
-\end{itemize} 
+\end{itemize}
+
+Des choix courants de noyaux d'excitation sont la forme exponentielle $g(t) = \alpha\beta\exp(-\beta t)$ ou la somme de formes exponentielles $g(t) = \sum_l \alpha_l\beta_l\exp(-\beta_l t)$.
 
 \subsection{Réseaux de neurones récurrents}
 
-Les réseaux de neurones récurrents (\textit{recurrent neural networks}, RNN), sont des modèles de réseaux de neurones avec mémoire, qui prennent en compte l'historique entier de leurs \textit{inputs} au cours de leur entraînement, via un vecteur $h\in\RR^D$ (appelé état caché, \textit{hidden state}), mis à jour à chaque passage dans le réseau (voir la \autoref{fig:simpleRNN}). L'entier $D$ est la dimension cachée du réseau.
+Les réseaux de neurones récurrents (\textit{recurrent neural networks}, RNN), sont des modèles de réseaux de neurones avec mémoire, qui prennent en compte l'historique entier de leurs \textit{inputs} au cours de leur entraînement, via état caché $h\in\RR^D$ (\textit{hidden state}), mis à jour à chaque passage dans le réseau. L'entier $D$ est la dimension cachée du réseau. La figure \autoref{fig:simpleRNN} illustre une architecture RNN simple, dite de \citeauthor{elman1990srnn} \cite{elman1990srnn}.
 
-Ces architectures récurrentes se sont montrées particulièrement efficace dans le domaine de la compréhension de texte (vocabulaire, syntaxe\ldots), le \textit{natural language processing} (NLP). \cite{unreasonableEffectivenessRNN}
+Ces architectures récurrentes se sont montrées particulièrement efficaces dans le domaines de la vision par ordinateur ou de la compréhension de texte, le \textit{natural language processing} (NLP). \cite{unreasonableEffectivenessRNN}
 
 \begin{figure}
 	\centering
@@ -48,15 +50,23 @@ Ces architectures récurrentes se sont montrées particulièrement efficace dans
 	\caption{Les architectures RNN impliquent l'usage de boucles: la sortie $h_t$ est utilisée calculer $h_{t+1}$.}\label{fig:simpleRNN}
 \end{figure}
 
-\subsubsection{Réseau récurrent avec amortissement (Decay-RNN)}
+Il s'agit ici de modéliser des événements auxquels sont associés à la fois des types mais aussi des temps d'arrivée qui se répartissent en temps continu et peuvent refléter des phénomènes de relaxation ou d'excitation. Une façon de faire est de considérer que l'intensité du processus est modélisée par un réseau de neurones récurrent:
+\[
+	\lambda_t = \phi(t\mid \mathcal{F}_t)
+\]
+où l'architecture récurrente permet au réseau $\phi$ de dépendre de l'information $\mathcal{F}_t$ que l'on détient sur le passé: temps d'arrivée des événements et types de ces derniers.
 
-On postule que l'intensité est de la forme
-\begin{equation}\label{eq:decayrnnhiddenstate}
+
+
+\subsubsection{Réseau récurrent avec amortissement (Decay-RNN)}\label{sssec:decayRNN}
+
+On postule que l'intensité est non-linéaire de la forme
+\begin{equation}\label{eq:decayRNNintensity}
 \lambda_t = f(W_l h(t))
 \end{equation}
-où l'état caché $h(t)\in\RR^D$ est continu. Il s'agit d'une variante des architectures récurrentes standard, inspirée du modèle <<~\textit{Neural Hawkes process}~>> de \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}, qui lui utilise un réseau LSTM (\textit{Long Short-Term Memory network}).
+où $h(t)\in\RR^D$ est un état caché en temps continu. Il s'agit d'une variante des architectures récurrentes standard de \citeauthor{elman1990srnn} introduisant un amortissement exponentiel de l'état caché $h(t)$ pour prendre en compte le temps. C'est inspiré de ce que font \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}.
 
-Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i$ de l'événement en $t_i$, représenté par un vecteur $x_i\in{\{0,1\}}^K$ tel que $(x_i)_j = \mathds{1}_{\{k_i = j\}}$, technique qui s'appelle encodage \textit{one-hot}\footnotemark.
+Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i\in\llbracket 1,K\rrbracket$, transformé en vecteur $x_i\in\RR^K$ en utilisant un \textit{embedding}.
 Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
 \begin{equation}
 h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
@@ -68,10 +78,47 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 	\delta_{i+1} &= f(W_{hd}h(t_i) + W_{xd}x_i + b_d).
 \end{align}
 \end{subequations}
-\footnotetext{Ainsi, si $K=3$ et $k_i = 2$, alors $x_i = {(0,1,0)}^\intercal$}
 
-La fonction d'activation $f$ est une approximation de classe $\mathcal C^1$ et strictement positive de la fonction ReLU ($x\mapsto \max(x,0)$), la fonction <<~Softmax~>>
+La fonction d'activation $f$ est la fonction <<~Softmax~>>
 \[
-x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}),\quad\beta > 0.
+	x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}),\quad\beta > 0,
 \]
+une approximation régulière et strictement positive de la fonction ReLU $x\mapsto \max(x,0)$.
+
+
+
+\subsubsection{Réseau LSTM avec amortissement}
+
+\citeauthor{meiEisnerNeuralHawkes} proposent en fait d'utiliser une architecture inspirée des réseaux <<~\textit{Long Short-Term Memory}~>> (LSTM). Ces réseaux récurrents plus complexes permettent un contrôle plus fin de l'information qui reste en mémoire.
+
+L'intensité est définie à partir de l'état caché $h(t)$ comme dans \eqref{eq:decayRNNintensity}, et cet état caché est lié à un état-cellule $c(t)$ (\textit{cell state}) en temps continu par la relation usuelle des réseaux LSTM
+\begin{equation}
+	h(t) = o_i \odot \tanh(c(t)).
+\end{equation}
+
+L'état-cellule $c(t)$ suit une évolution exponentielle entre deux événements $t_{i-1}$ et $t_i$:
+\begin{equation}\label{eq:ctlstmCellState}
+c(t) = \bar{c}_{i} + (c_{i} - \bar{c}_{i})e^{-\delta_i (t - t_{i-1})},\quad t\in(t_{i-1}, t_{i}].
+\end{equation}
+Les paramètres sont mis à jour pour l'intervalle $(t_i, t_{i+1}]$ via les équations:
+\begin{subequations}
+\begin{align}
+	\mathrm{i}_{i+1} &= \sigma(W_{h\mathrm{i}}h(t_i) + W_{x\mathrm{i}}x_i + b_{\mathrm{i}}) \\
+	f_{i+1} &= \sigma(W_{hf}h(t_i) + W_{xf}x_i + b_{f}) \\
+	\bar{\imath}_{i+1} &= \sigma(W_{h\bar{\imath}}h(t_i) + W_{x\bar{\imath}}x_i + b_{\bar{\imath}}) \\
+	\bar{f}_{i+1} &= \sigma(W_{h\bar{f}}h(t_i) + W_{x\bar{f}}x_i + b_{\bar{f}}) \\
+	z_{i+1} &= \tanh(W_{hz}h(t_i) + W_{xz}x_i + b_{z}) \\
+	\delta_{i+1} &= f(W_{hd}x_i + W_{xd}h(t_i) + b_d) \\
+	c_{i+1} &= f_{i+1}\odot c(t_i) + \mathrm{i}_{i+1}\odot z_{i+1} \\
+	\bar{c}_{i+1} &= \bar{f}_{i+1}\odot \bar{c}_i + \bar{\imath}_{i+1}\odot z_{i+1} \\
+	o_{i+1} &= \sigma(W_{ho}h(t_i) + W_{xo}x_i + b_o)
+\end{align}
+\end{subequations}
+
+
+
+
+
+
+
 \end{document}

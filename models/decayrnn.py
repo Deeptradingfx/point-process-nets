@@ -249,7 +249,7 @@ class HawkesRNNGen:
             s = torch.zeros(1)
             last_t = 0.
             hidden, decay = model.initialize_hidden()
-            intens = model.intensity_layer(hidden)
+            intens = model.intensity_layer(hidden).numpy()
             self.event_times.append(last_t)  # record sequence start event
             self.event_types.append(self.process_dim)  # sequence start event is of type K
             self.event_intens.append(intens)
@@ -272,7 +272,7 @@ class HawkesRNNGen:
                         self.all_times_.append(u)
                         h_u = h_u * torch.exp(-decay * du)
                         lbda_t = model.intensity_layer(h_u)
-                        self.intens_hist.append(lbda_t)
+                        self.intens_hist.append(lbda_t.numpy())
                         u += du
                 if s > tmax:
                     break
@@ -280,7 +280,7 @@ class HawkesRNNGen:
                 # adaptive sampling: always update the hidden state
                 hidden = hidden * torch.exp(-decay * ds)
                 intens_candidate = model.intensity_layer(hidden)
-                self.intens_hist.append(intens_candidate)
+                self.intens_hist.append(intens_candidate.numpy())
                 total_intens: Tensor = torch.sum(intens_candidate, dim=1, keepdim=True)
                 # rejection sampling
                 u2: Tensor = torch.rand(1)
@@ -296,18 +296,18 @@ class HawkesRNNGen:
                     concat = torch.cat((x, hidden), dim=1)
                     decay = model.decay_layer(concat)
                     hidden = model.rnn_layer(x, hidden)
-                    self.hidden_hist.append(hidden)
-                    self.decay_hist.append(decay)
+                    self.hidden_hist.append(hidden.numpy())
+                    self.decay_hist.append(decay.numpy())
                     last_t = s.item()
                     self.event_times.append(last_t)
                     self.event_types.append(k)
                     self.all_times_.append(last_t)
-                    intens = model.intensity_layer(hidden)
+                    intens = model.intensity_layer(hidden).numpy()
                     self.event_intens.append(intens)
                     self.intens_hist.append(intens)
                 max_lbda = self.get_max_lbda(hidden)
 
-    def plot_events_and_intensity(self):
+    def plot_events_and_intensity(self, model_name: str = None):
         import matplotlib.pyplot as plt
         model = self.model
         gen_seq_times = self.event_times
@@ -317,30 +317,35 @@ class HawkesRNNGen:
         evt_times = np.array(gen_seq_times)
         evt_types = np.array(gen_seq_types)
         fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
-                               figsize=(10, 5))
+                               figsize=(10, 4.5))
         ax: plt.Axes
         inpt_size = model.input_size
         ax.set_xlabel('Time $t$ (s)')
-        intens_hist = torch.stack(self.intens_hist)[:, 0].numpy()
+        intens_hist = np.stack(self.intens_hist)[:, 0]
         labels = ["type {}".format(i) for i in range(model.process_dim)]
         for y, lab in zip(intens_hist.T, labels):
             ax.plot(self.all_times_, y, linewidth=.7, label=lab)
         ax.set_ylabel(r"Intensities $\lambda^i_t$")
-        ax.set_title("Event arrival times and intensities for generated sequence")
+        title = "Event arrival times and intensities for generated sequence"
+        if model_name:
+            title += " ({})".format(model_name)
+        ax.set_title(title)
         ylims = ax.get_ylim()
-        ts_y = torch.stack(self.event_intens)[:, 0].numpy()
-        print("input size", inpt_size)
+        ts_y = np.stack(self.event_intens)[:, 0]
         for k in range(inpt_size):
             mask = evt_types == k
             if k == self.process_dim:
-                y = np.zeros_like(evt_times[mask])
+                label = "start event".format(k)
+                y = self.intens_hist[0]*np.ones_like(evt_times[mask])
             else:
                 y = ts_y[mask, k]
-            ax.scatter(evt_times[mask], y, s=9,
-                       label="event type {}".format(k), alpha=0.7)
+                label = "type {} event".format(k)
+            ax.scatter(evt_times[mask], y, s=9, zorder=5,
+                       label=label, alpha=0.8)
             ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.5)
         ax.set_ylim(*ylims)
         ax.legend()
+        fig.tight_layout()
         return fig
 
 

@@ -9,7 +9,7 @@ Une fonctionnelle de perte possible, utilisée dans \autocite{meiEisnerNeuralHaw
 \begin{equation}\label{eq:explicitLikelihood}
 \mathcal{L}\left(\{(t_i,k_i)\}_i\right)
 =
-\sum_{i:\,t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
+\sum_{i:\, t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
 \end{equation}
 où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
 
