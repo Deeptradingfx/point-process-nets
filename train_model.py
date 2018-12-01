@@ -84,7 +84,7 @@ if __name__ == '__main__':
     if args.train_size:
         train_size = args.train_size
     else:
-        train_size = 1200
+        train_size = int(0.5*total_sample_size)
     print("Train sample size: {:}/{:}".format(train_size, total_sample_size))
 
     # Define training data

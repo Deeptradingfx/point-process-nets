@@ -165,8 +165,8 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             # Get the batch data
             batch_seq_lengths: Tensor = seq_lengths[i:(i + batch_size)]
             max_seq_length = batch_seq_lengths[0]
-            batch_seq_times = seq_times[i:(i + batch_size), :max_seq_length + 1]
-            batch_seq_types = seq_types[i:(i + batch_size), :max_seq_length + 1]
+            batch_seq_times = seq_times[i:(i + batch_size), :max_seq_length+1]
+            batch_seq_types = seq_types[i:(i + batch_size), :max_seq_length+1]
             # Inter-event time intervals
             batch_dt = batch_seq_times[:, 1:] - batch_seq_times[:, :-1]
             # print("max seq. lengths: {}".format(max_seq_length))
@@ -175,25 +175,9 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             packed_dt = nn.utils.rnn.pack_padded_sequence(batch_dt, batch_seq_lengths, batch_first=True)
             packed_types = nn.utils.rnn.pack_padded_sequence(batch_seq_types, batch_seq_lengths, batch_first=True)
             max_pack_batch_size = packed_dt.batch_sizes[0]
-            hidden_t, decay = model.initialize_hidden(max_pack_batch_size, device)
+            hidden0, decay = model.initialize_hidden(max_pack_batch_size, device)
             # Data records
-            hiddens = []  # full, updated hidden states
-            hiddens_ti = []  # decayed hidden states
-            decays = []  # decay parameters
-            beg_index = 0
-            for j in range(max_seq_length):
-                # event t_i is happening
-                sub_batch_size = packed_dt.batch_sizes[j]
-                # hidden state just before this event
-                hidden_t = hidden_t[:sub_batch_size]
-                # time until next event t_{i+1}
-                dt_sub_batch = packed_dt.data[beg_index:(beg_index + sub_batch_size)]
-                types_sub_batch = packed_types.data[beg_index:(beg_index + sub_batch_size)]
-                hidd, decay, hidden_t = model(dt_sub_batch, types_sub_batch, hidden_t)
-                beg_index += sub_batch_size
-                hiddens.append(hidd)
-                hiddens_ti.append(hidden_t)
-                decays.append(decay)
+            hiddens, decays, hiddens_ti = model(packed_dt, packed_types, hidden0)
             batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
             batch_onehot = batch_onehot[:, :, :model.process_dim]
             loss: Tensor = model.compute_loss(batch_seq_times, batch_onehot,

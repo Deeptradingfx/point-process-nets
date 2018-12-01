@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch import Tensor
+from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 from utils.load_synth_data import one_hot_embedding
 
@@ -29,13 +30,14 @@ class HawkesDecayRNN(nn.Module):
         self.embed = nn.Embedding(self.input_size, self.process_dim, padding_idx=self.process_dim)
         self.rnn_layer = nn.RNNCell(self.process_dim, hidden_size, nonlinearity="tanh")
         self.decay_layer = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, 1),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Softplus(beta=3.0))
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=intens_bias),
             nn.Softplus(beta=3.0))
 
-    def forward(self, dt: Tensor, seq_types: Tensor, hidden_ti: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, dt: PackedSequence, seq_types: PackedSequence,
+                h0: Tensor) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
         """
         Forward pass of the network.
 
@@ -47,25 +49,45 @@ class HawkesDecayRNN(nn.Module):
 
         Args:
             dt: interval of time before event :math:`i`, :math:`\Delta t_i`
-                Shape: batch
+                Shape: seq_len * batch
             seq_types: sequence event types (one hot encoded)
-                Shape: batch * input_size
-            hidden_ti: decayed hidden state :math:`h(t_i)` at the end of :math:`(t_{i-1},t_i]`
+                Shape: seq_len * batch * input_size
+            h0: decayed hidden state :math:`h(t_i)` at the end of :math:`(t_{i-1},t_i]`
                 Shape: batch * hidden_size
 
         Returns:
             The hidden state and decay value for the interval, and the decayed hidden state.
             Collect them during training to use for computing the loss.
         """
-        x = self.embed(seq_types)
-        concat = torch.cat((x, hidden_ti), dim=1)
-        # Decay value for the next interval, predicted from the decayed hidden state
-        decay = self.decay_layer(concat)
-        # New hidden state h(t_i+)
-        hidden = self.rnn_layer(x, hidden_ti)  # shape batch * hidden_size
-        # decay the new hidden state to its value h(t_{i+1})
-        hidden_after_decay = hidden * torch.exp(-decay * dt[:, None])  # shape batch * hidden_size
-        return hidden, decay, hidden_after_decay
+        h_t = h0
+        hiddens = []  # full, updated hidden states
+        hiddens_ti = []  # decayed hidden states
+        decays = []  # decay parameters
+        max_seq_length = len(dt.batch_sizes)
+        beg_index = 0
+        for j in range(max_seq_length):
+            # event t_i is happening
+            batch_size = dt.batch_sizes[j]
+            # hidden state just before this event
+            h_t = h_t[:batch_size]
+            # time until next event t_{i+1}
+            dt_sub_batch = dt.data[beg_index:(beg_index + batch_size)]
+            types_sub_batch = seq_types.data[beg_index:(beg_index + batch_size)]
+
+            x = self.embed(types_sub_batch)
+            concat = torch.cat((x, h_t), dim=1)
+            # Decay value for the next interval, predicted from the decayed hidden state
+            decay = self.decay_layer(concat)
+            # New hidden state h(t_i+)
+            hidden = self.rnn_layer(x, h_t)  # shape batch * hidden_size
+            # decay the new hidden state to its value h(t_{i+1})
+            h_t = hidden * torch.exp(-decay * dt_sub_batch[:, None])  # shape batch * hidden_size
+
+            beg_index += batch_size
+            hiddens.append(hidden)
+            hiddens_ti.append(h_t)
+            decays.append(decay)
+        return hiddens, decays, hiddens_ti
 
     def initialize_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
         """
@@ -95,7 +117,7 @@ class HawkesDecayRNN(nn.Module):
         Returns:
             Intensity function value after dt.
         """
-        h_t: Tensor = hidden*torch.exp(-decay*dt)
+        h_t: Tensor = hidden * torch.exp(-decay * dt)
         if h_t.ndimension() > 2:
             h_t = h_t.transpose(1, 2)
         lbda_t: Tensor = self.intensity_layer(h_t)
@@ -132,7 +154,7 @@ class HawkesDecayRNN(nn.Module):
 
         """
         n_batch = seq_times.size(0)
-        n_times = seq_times.size(1) - 1
+        n_times = len(batch_sizes)
         # import pdb; pdb.set_trace()
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape N * batch
         device = seq_times.device
@@ -169,7 +191,7 @@ class HawkesDecayRNN(nn.Module):
         intens_at_samples: Tensor = nn.utils.rnn.pad_sequence(
             intens_at_samples, padding_value=0.0)  # shape batch * N * K * MC
         total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape batch * N * MC
-        integral_estimates: Tensor = torch.sum(dt_seq[:, :, None]*total_intens_samples, dim=1)
+        integral_estimates: Tensor = torch.sum(dt_seq[:, :, None] * total_intens_samples, dim=1)
         second_term: Tensor = integral_estimates.mean(dim=1)
         res: Tensor = (- first_term + second_term).mean()  # average over the bath
         return res
@@ -183,16 +205,18 @@ class HawkesRNNGen:
         model: model instance with which to generate event sequences.
     """
 
-    def __init__(self, model: HawkesDecayRNN):
+    def __init__(self, model: HawkesDecayRNN, record_intensity: bool = True):
         self.model = model
-        self.dim_process = model.input_size - 1  # process dimension
-        print("Process model dim:\t{}\tHidden units:\t{}".format(self.dim_process, model.hidden_size))
+        self.process_dim = model.input_size - 1  # process dimension
+        print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
         self.event_times = []
         self.event_types = []
         self.decay_hist = []
         self.hidden_hist = []
         self.intens_hist = []
         self.all_times_ = []
+        self.event_intens = []
+        self.record_intensity: bool = record_intensity
 
     def get_max_lbda(self, hidden):
         partial_lbda = self.model.intensity_layer[0](hidden)
@@ -203,6 +227,7 @@ class HawkesRNNGen:
     def restart_sequence(self):
         self.event_times = []
         self.event_types = []
+        self.event_intens = []
         self.decay_hist = []
         self.hidden_hist = []
         self.intens_hist = []
@@ -224,41 +249,46 @@ class HawkesRNNGen:
             s = torch.zeros(1)
             last_t = 0.
             hidden, decay = model.initialize_hidden()
+            intens = model.intensity_layer(hidden)
             self.event_times.append(last_t)  # record sequence start event
-            self.event_types.append(self.dim_process)  # sequence start event is of type K
+            self.event_types.append(self.process_dim)  # sequence start event is of type K
+            self.event_intens.append(intens)
+            self.intens_hist.append(intens)
+            self.all_times_.append(last_t)
             max_lbda = self.get_max_lbda(hidden)
             # import pdb; pdb.set_trace()
             while last_t < tmax:
                 u1: Tensor = torch.rand(1)
                 # Candidate inter-arrival time the aggregated process
-                ds: Tensor = -1./max_lbda*u1.log()
+                ds: Tensor = -1. / max_lbda * u1.log()
                 # candidate future arrival time
-                du = ds.item()/10
+                du = ds.item() / 10
                 u = s.item() + du
                 s: Tensor = s + ds
+                if self.record_intensity:
+                    # Track event intensities
+                    h_u = hidden.clone()
+                    while u < s.item():
+                        self.all_times_.append(u)
+                        h_u = h_u * torch.exp(-decay * du)
+                        lbda_t = model.intensity_layer(h_u)
+                        self.intens_hist.append(lbda_t)
+                        u += du
                 if s > tmax:
                     break
-                # Track event intensities
-                h_u = hidden.clone()
-                while u < s.item():
-                    self.all_times_.append(u)
-                    h_u = h_u*torch.exp(-decay*du)
-                    lbda_t = model.intensity_layer(h_u)
-                    self.intens_hist.append(lbda_t)
-                    u += du
                 self.all_times_.append(s.item())
                 # adaptive sampling: always update the hidden state
-                hidden = hidden*torch.exp(-decay*ds)
+                hidden = hidden * torch.exp(-decay * ds)
                 intens_candidate = model.intensity_layer(hidden)
                 self.intens_hist.append(intens_candidate)
                 total_intens: Tensor = torch.sum(intens_candidate, dim=1, keepdim=True)
                 # rejection sampling
                 u2: Tensor = torch.rand(1)
-                ratio = total_intens/max_lbda
+                ratio = total_intens / max_lbda
                 if u2 <= ratio:
                     # shape 1 * (K+1)
                     # probability distribution for the types
-                    weights: Tensor = intens_candidate/total_intens  # ratios of types intensities to aggregate
+                    weights: Tensor = intens_candidate / total_intens  # ratios of types intensities to aggregate
                     res = torch.multinomial(weights, 1)
                     k = res.item()
                     # accept
@@ -271,6 +301,10 @@ class HawkesRNNGen:
                     last_t = s.item()
                     self.event_times.append(last_t)
                     self.event_types.append(k)
+                    self.all_times_.append(last_t)
+                    intens = model.intensity_layer(hidden)
+                    self.event_intens.append(intens)
+                    self.intens_hist.append(intens)
                 max_lbda = self.get_max_lbda(hidden)
 
     def plot_events_and_intensity(self):
@@ -282,61 +316,72 @@ class HawkesRNNGen:
         print("no. of events: {}".format(sequence_length))
         evt_times = np.array(gen_seq_times)
         evt_types = np.array(gen_seq_types)
-        proc_dim = self.dim_process
-        fig, (ax0, ax1) = plt.subplots(2, 1, sharex='all', dpi=110,
-                                       figsize=(10, 6), gridspec_kw={"height_ratios": (4, 1)})
-        ts_y = 0.5 * np.random.rand(sequence_length)
+        fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
+                               figsize=(10, 5))
+        ax: plt.Axes
         inpt_size = model.input_size
+        ax.set_xlabel('Time $t$ (s)')
+        intens_hist = torch.stack(self.intens_hist)[:, 0].numpy()
+        labels = ["type {}".format(i) for i in range(model.process_dim)]
+        for y, lab in zip(intens_hist.T, labels):
+            ax.plot(self.all_times_, y, linewidth=.7, label=lab)
+        ax.set_ylabel(r"Intensities $\lambda^i_t$")
+        ax.set_title("Event arrival times and intensities for generated sequence")
+        ylims = ax.get_ylim()
+        ts_y = torch.stack(self.event_intens)[:, 0].numpy()
+        print("input size", inpt_size)
         for k in range(inpt_size):
             mask = evt_types == k
-            ax1.scatter(evt_times[mask], ts_y[mask], s=9,
-                        label="{}".format(k), alpha=0.7)
-            ax1.vlines(evt_times[mask], -0.6, 1.6, linewidth=0.3, linestyles='--', alpha=0.5)
-        ax1.set_ylim((-0.6, 1.2))
-        ax1.legend()
-        intens_hist = torch.stack(self.intens_hist)[:, 0].numpy()
-        ax0.plot(self.all_times_, intens_hist, linewidth=.7)
+            if k == self.process_dim:
+                y = np.zeros_like(evt_times[mask])
+            else:
+                y = ts_y[mask, k]
+            ax.scatter(evt_times[mask], y, s=9,
+                       label="event type {}".format(k), alpha=0.7)
+            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.5)
+        ax.set_ylim(*ylims)
+        ax.legend()
         return fig
 
 
-def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
-                 event_seq_types: Tensor, seq_length: Tensor,
+def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
+                 seq_types: Tensor, seq_length: Tensor,
                  verbose: bool = False) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Reads an event sequence and predicts the next event time and type.
 
     Args:
         model: Decay-RNN model instance
-        event_seq_times: event sequence arrival times (with 0)
-        event_seq_types: event types (one-hot encoded)
+        seq_times: event sequence arrival times (with 0)
+        seq_types: event types (one-hot encoded)
         seq_length: event sequence length
         verbose: whether or not to print stuff
 
     Returns:
 
     """
-    ndim = event_seq_times.ndimension()
+    ndim = seq_times.ndimension()
     if ndim < 2:
-        event_seq_times = event_seq_times.unsqueeze(1)
-        event_seq_types = event_seq_types.unsqueeze(1)
-    event_seq_times = event_seq_times[:seq_length+1]
-    event_seq_types = event_seq_types[:seq_length+1]
+        seq_times = seq_times.unsqueeze(1)
+        seq_types = seq_types.unsqueeze(1)
+    seq_times = seq_times[:seq_length + 1]
+    seq_types = seq_types[:seq_length + 1]
     model.eval()
     hidden_t, decay = model.initialize_hidden()
     hidden = hidden_t.clone()
-    dt_seq = event_seq_times[1:] - event_seq_times[:-1]
+    dt_seq = seq_times[1:] - seq_times[:-1]
     assert seq_length == dt_seq.shape[0]
     # Read event sequence
     for i in range(seq_length):
-        hidden, decay, hidden_t = model(dt_seq[i], event_seq_types[i], hidden_t)
+        hidden, decay, hidden_t = model(dt_seq[i], seq_types[i], hidden_t)
     # We read the types of all events up until this one
-    last_ev_time = event_seq_times[-2]  # last read event time
-    type_real = event_seq_types[-1]  # real next event's type
+    last_ev_time = seq_times[-2]  # last read event time
+    type_real = seq_types[-1]  # real next event's type
     ds = dt_seq[-1]  # time until next event
     with torch.no_grad():
         intensities = model.intensity_layer(hidden)
         # probability distribution of all possible evt types at tN
-        prob_distrib = intensities/intensities.sum()
+        prob_distrib = intensities / intensities.sum()
         k_type_predict = torch.multinomial(prob_distrib, 1)[0]  # event type prediction
         type_predict = one_hot_embedding(k_type_predict, model.input_size)
     # import pdb; pdb.set_trace()
@@ -344,8 +389,8 @@ def read_predict(model: HawkesDecayRNN, event_seq_times: Tensor,
     if verbose:
         print("Sequence length: {}".format(seq_length))
         print("Last read event time: {} of type {}"
-              .format(last_ev_time, event_seq_types[-2].argmax()))
-        print("Next event time: {} in {} secs".format(event_seq_times[-1], ds))
+              .format(last_ev_time, seq_types[-2].argmax()))
+        print("Next event time: {} in {} secs".format(seq_times[-1], ds))
         print("Actual type: {}".format(k_type_real))
         print("Predicted type: {}".format(k_type_predict.item()))
 
