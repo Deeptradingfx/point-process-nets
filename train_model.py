@@ -11,14 +11,14 @@ import torch
 from torch import optim
 
 from utils.load_synth_data import process_loaded_sequences
-from models.decayrnn import HawkesDecayRNN
+from models import HawkesDecayRNN, HawkesLSTM
 from train_functions import train_decayrnn, train_lstm
 
 SEED = 52
 torch.manual_seed(SEED)
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_HIDDEN_SIZE = 2
-DEFAULT_LEARN_RATE = 0.015
+DEFAULT_HIDDEN_SIZE = 6
+DEFAULT_LEARN_RATE = 0.02
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train the model.")
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch', type=int,
                         dest='batch_size', default=DEFAULT_BATCH_SIZE,
                         help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
-    parser.add_argument('--learning-rate', default=DEFAULT_LEARN_RATE, type=float,
+    parser.add_argument('--lr', default=DEFAULT_LEARN_RATE, type=float,
                         help="set the optimizer learning rate. (default {})".format(DEFAULT_LEARN_RATE))
     parser.add_argument('--hidden', type=int,
                         dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
@@ -43,6 +43,9 @@ if __name__ == '__main__':
                         help="do not save the model state dict and loss history.")
     parser.add_argument('--cuda', dest='use_cuda', action='store_true',
                         help="whether or not to use GPU.")
+    parser.add_argument('-m', '--model', required=True,
+                        type=str, choices=['rnn', 'lstm'],
+                        help='choose which model to train.')
 
     args = parser.parse_args()
     USE_CUDA = args.use_cuda
@@ -75,9 +78,19 @@ if __name__ == '__main__':
     seq_lengths = seq_lengths.to(device)
 
     hidden_size = args.hidden_size
-    learning_rate = args.learning_rate
+    learning_rate = args.lr
+    MODEL_TOKEN = args.model
+
+    model = None
+    if MODEL_TOKEN == 'rnn':
+        model = HawkesDecayRNN(process_dim, hidden_size).to(device)
+    elif MODEL_TOKEN == 'lstm':
+        model = HawkesLSTM(process_dim, hidden_size).to(device)
+    else:
+        exit()
+    MODEL_NAME = model.__class__.__name__
+    print("Chose model {}".format(MODEL_NAME))
     print("Hidden size: {}".format(hidden_size))
-    model = HawkesDecayRNN(process_dim, hidden_size).to(device)
     optimizer = optim.SGD(model.parameters(), learning_rate)
 
     total_sample_size = seq_times.size(0)
@@ -96,9 +109,16 @@ if __name__ == '__main__':
     BATCH_SIZE = args.batch_size
     EPOCHS = args.epochs
 
-    loss_hist, train_hist = train_decayrnn(
-        model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
-        tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
+    if MODEL_TOKEN == 'rnn':
+        loss_hist, train_hist = train_decayrnn(
+            model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
+            tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
+    elif MODEL_TOKEN == 'lstm':
+        loss_hist, train_hist = train_lstm(
+            model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
+            tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
+    else:
+        exit()
 
     if args.save:
         # Model file dump
@@ -109,7 +129,7 @@ if __name__ == '__main__':
         date_format = "%Y%m%d-%H%M%S"
         now_timestamp = datetime.datetime.now().strftime(date_format)
         extra_tag = "{}d".format(process_dim)
-        filename_base = "{}-{}-{}".format(model.__class__.__name__, extra_tag, now_timestamp)
+        filename_base = "{}-{}-{}".format(MODEL_NAME, extra_tag, now_timestamp)
         filename_model_save = filename_base + ".pth"
         filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
         print("Saving model state dict to {}".format(filepath))
