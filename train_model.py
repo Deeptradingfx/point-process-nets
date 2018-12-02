@@ -91,7 +91,7 @@ if __name__ == '__main__':
     MODEL_NAME = model.__class__.__name__
     print("Chose model {}".format(MODEL_NAME))
     print("Hidden size: {}".format(hidden_size))
-    optimizer = optim.SGD(model.parameters(), learning_rate)
+    optimizer = optim.Adagrad(model.parameters(), learning_rate)
 
     total_sample_size = seq_times.size(0)
     if args.train_size:
