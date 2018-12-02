@@ -249,7 +249,9 @@ class HawkesRNNGen:
             s = torch.zeros(1)
             last_t = 0.
             hidden, decay = model.initialize_hidden()
+            hidden.normal_(std=0.1)  # set the hidden state to a N(0, 0.01) variable.
             intens = model.intensity_layer(hidden).numpy()
+            self.hidden_hist.append(hidden.numpy())
             self.event_times.append(last_t)  # record sequence start event
             self.event_types.append(self.process_dim)  # sequence start event is of type K
             self.event_intens.append(intens)
