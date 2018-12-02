@@ -130,10 +130,9 @@ if __name__ == '__main__':
         now_timestamp = datetime.datetime.now().strftime(date_format)
         extra_tag = "{}d".format(process_dim)
         filename_base = "{}-{}-{}".format(MODEL_NAME, extra_tag, now_timestamp)
-        filename_model_save = filename_base + ".pth"
-        filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
-        print("Saving model state dict to {}".format(filepath))
-        torch.save(model.state_dict(), filepath)
+        from utils.save_model import save_model
+        save_model(model, chosen_file, extra_tag,
+                   hidden_size, now_timestamp, MODEL_NAME)
 
         # Save train history to logs
         LOGS_PATH = os.path.abspath(args.log_dir)
