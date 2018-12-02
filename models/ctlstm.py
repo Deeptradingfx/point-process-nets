@@ -56,7 +56,7 @@ class HawkesLSTM(nn.Module):
             nn.Softplus(beta=8.)
         )
         # activation for the intensity
-        self.activation = nn.Sequential(
+        self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_dim, self.process_dim, bias=False),  # no bias in the model
             nn.Softplus(beta=5.)
         )
@@ -116,6 +116,8 @@ class HawkesLSTM(nn.Module):
         for j in range(max_seq_length):
             batch_size = dt.batch_sizes[j]
             h_t = h_t[:batch_size]
+            c_t = c_t[:batch_size]
+            c_target_i = c_target_i[:batch_size]
             dt_sub_batch = dt.data[beg_index:(beg_index + batch_size)]
             types_sub_batch = seq_types.data[beg_index:(beg_index + batch_size)]
 
@@ -125,7 +127,8 @@ class HawkesLSTM(nn.Module):
             forget = self.forget_g(v)
             input_target = self.input_target(v)
             forget_target = self.forget_target(v)
-            output = self.output_g(v)
+            output = self.output_g(v)  # compute the LSTM network output
+            outputs.append(output)  # record it
             # Not-quite-c
             z_i = self.z_gate(v)
             # Compute the decay parameter
@@ -175,8 +178,10 @@ class HawkesLSTM(nn.Module):
                 torch.exp(-decay * dt)
         )
         # Compute the hidden state
-        h_t = output * torch.tanh(c_t)
-        return self.activation(h_t)
+        h_t: Tensor = output * torch.tanh(c_t)
+        if h_t.ndimension() > 2:
+            return self.intensity_layer(h_t.transpose(1, 2)).transpose(1, 2)
+        return self.intensity_layer(h_t)
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
                      cells: List[Tensor], cell_targets: List[Tensor], outputs: List[Tensor],
@@ -203,7 +208,7 @@ class HawkesLSTM(nn.Module):
         """
         n_batch = seq_times.size(0)
         n_times = len(hiddens_ti)
-        dt_seq: Tensor = seq_times[1:] - seq_times[:-1]
+        dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]
         device = dt_seq.device
         # Get the intensity process
         intens_at_evs: Tensor = [
@@ -232,18 +237,20 @@ class HawkesLSTM(nn.Module):
         # shape N * batch * M_mc
         taus = torch.rand(n_batch, n_times, n_mc_samples).to(device)
         taus: Tensor = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
-
+        taus.unsqueeze_(2)
         intens_at_samples = [
-            self.compute_intensity(outputs[i], cells[i], cell_targets[i], decays[i],
-                                   taus[i, :batch_sizes[i]])
+            self.compute_intensity(
+                outputs[i].unsqueeze(-1), cells[i].unsqueeze(-1),
+                cell_targets[i].unsqueeze(-1), decays[i].unsqueeze(-1),
+                taus[:batch_sizes[i], i])
             for i in range(n_times)
         ]
         intens_at_samples = nn.utils.rnn.pad_sequence(
-            intens_at_samples, batch_first=True, padding_value=0.0)  # shape N * batch * (K + 1)
-        total_intens_samples: Tensor = intens_at_samples.sum(dim=2, keepdim=True)
-        integral_estimates: Tensor = dt_seq * total_intens_samples
-        second_term = integral_estimates.sum(dim=0)
-        res = (- log_sum + second_term).mean()
+            intens_at_samples, padding_value=0.0)  # shape N * batch * K * MC
+        total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape N * batch * MC
+        partial_integrals: Tensor = dt_seq * total_intens_samples.mean(dim=2)
+        integral_ = partial_integrals.sum(dim=1)
+        res = (- log_sum + integral_).mean()  # mean on batch dim
         return res
 
 
@@ -295,7 +302,7 @@ class HawkesLSTMGen:
             )
             hidden_state_s = self.output * torch.tanh(cell_state_s)
             # Apply activation function to hidden state
-            intens = self.model.activation(hidden_state_s).item()
+            intens = self.model.intensity_layer(hidden_state_s).item()
             u2 = np.random.rand()  # random in [0,1]
             print("Intensity {:}".format(intens))
             print("\tlbda_max\t{:}".format(lbda_max))
@@ -316,7 +323,7 @@ class HawkesLSTMGen:
         .. math::
             o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
         """
-        w_alpha = self.model.activation[0].weight.data
+        w_alpha = self.model.intensity_layer[0].weight.data
         cell_diff = self.cell_t - self.cell_target
         mult_prefix = w_alpha * self.output
         pos_prefactor = mult_prefix > 0
@@ -329,4 +336,4 @@ class HawkesLSTMGen:
         neg_incr = ~pos_prefactor & (cell_diff < 0)
         p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(self.cell_t[neg_incr]))
         lbda_tilde = p1 + p2 + p3 + p4
-        return self.model.activation(lbda_tilde)
+        return self.model.intensity_layer(lbda_tilde)

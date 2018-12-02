@@ -188,9 +188,9 @@ class HawkesDecayRNN(nn.Module):
         intens_at_samples: Tensor = nn.utils.rnn.pad_sequence(
             intens_at_samples, padding_value=0.0)  # shape batch * N * K * MC
         total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape batch * N * MC
-        integral_estimates: Tensor = torch.sum(dt_seq[:, :, None] * total_intens_samples, dim=1)
-        second_term: Tensor = integral_estimates.mean(dim=1)
-        res: Tensor = (- log_sum + second_term).mean()  # average over the bath
+        partial_integrals: Tensor = dt_seq * total_intens_samples.mean(dim=2)
+        integral_: Tensor = partial_integrals.sum(dim=1)
+        res: Tensor = (- log_sum + integral_).mean()  # average over the bath
         return res
 
 

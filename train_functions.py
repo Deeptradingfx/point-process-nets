@@ -42,18 +42,19 @@ def train_neural_ctlstm(model: HawkesLSTM, optimizer: Optimizer,
     seq_times = seq_times[reorder_indices_]
     seq_types = seq_types[reorder_indices_]
 
-    train_size = seq_times.size(1)
+    # Size of the traing dataset
+    train_size = seq_times.size(0)
     loss_hist = []
     train_hist = []
-    for e in range(1, n_epochs + 1):
+    for epoch in range(1, n_epochs + 1):
         # Epoch loop
         epoch_loss = []
         if use_jupyter:
             tr_loop_range = tqdm.tnrange(0, train_size, batch_size,
-                                         file=sys.stdout, desc="Epoch %d" % e)
+                                         file=sys.stdout, desc="Epoch %d" % epoch)
         else:
             tr_loop_range = tqdm.trange(0, train_size, batch_size, ascii=True,
-                                        file=sys.stdout, desc="Epoch %d" % e)
+                                        file=sys.stdout, desc="Epoch %d" % epoch)
         # inter-arrival times
         for i in tr_loop_range:
             optimizer.zero_grad()
@@ -94,6 +95,7 @@ def train_neural_ctlstm(model: HawkesLSTM, optimizer: Optimizer,
                 decay_cell=decays
             ))
         epoch_loss_mean: float = np.mean(epoch_loss)
+        print('epoch {}: train loss {:.4f}'.format(epoch, epoch_loss_mean))
         loss_hist.append(epoch_loss_mean)  # append the final loss of each epoch
         model.trained_epochs += 1
     return loss_hist, train_hist
