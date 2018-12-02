@@ -89,7 +89,7 @@ class HawkesDecayRNN(nn.Module):
             decays.append(decay)
         return hiddens, decays, hiddens_ti
 
-    def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
+    def init_hidden(self, batch_size: int = 1, device=None) -> Tensor:
         """
 
         Returns:
@@ -236,6 +236,7 @@ class HawkesRNNGen:
 
         Args:
             tmax: time horizon
+            record_intensity (bool): whether or not to record the intensity at every point.
 
         Returns:
             Sequence of event times with corresponding event intensities.
@@ -247,8 +248,9 @@ class HawkesRNNGen:
         with torch.no_grad():
             s = torch.zeros(1)
             last_t = 0.
-            hidden, decay = model.init_hidden()
+            hidden = model.init_hidden()
             hidden.normal_(std=0.1)  # set the hidden state to a N(0, 0.01) variable.
+            decay = torch.zeros_like(hidden)
             intens = model.intensity_layer(hidden).numpy()
             self.hidden_hist.append(hidden.numpy())
             self.event_times.append(last_t)  # record sequence start event
@@ -258,7 +260,7 @@ class HawkesRNNGen:
             self.all_times_.append(last_t)
             max_lbda = self.get_max_lbda(hidden)
             # import pdb; pdb.set_trace()
-            while last_t < tmax:
+            while last_t <= tmax:
                 u1: Tensor = torch.rand(1)
                 # Candidate inter-arrival time the aggregated process
                 ds: Tensor = -1. / max_lbda * u1.log()
@@ -310,7 +312,6 @@ class HawkesRNNGen:
 
     def plot_events_and_intensity(self, model_name: str = None):
         import matplotlib.pyplot as plt
-        model = self.model
         gen_seq_times = self.event_times
         gen_seq_types = self.event_types
         sequence_length = len(gen_seq_times)
@@ -320,10 +321,10 @@ class HawkesRNNGen:
         fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
                                figsize=(10, 4.5))
         ax: plt.Axes
-        inpt_size = model.input_size
+        inpt_size = self.process_dim+1
         ax.set_xlabel('Time $t$ (s)')
         intens_hist = np.stack(self.intens_hist)[:, 0]
-        labels = ["type {}".format(i) for i in range(model.process_dim)]
+        labels = ["type {}".format(i) for i in range(self.process_dim)]
         for y, lab in zip(intens_hist.T, labels):
             ax.plot(self.all_times_, y, linewidth=.7, label=lab)
         ax.set_ylabel(r"Intensities $\lambda^i_t$")
