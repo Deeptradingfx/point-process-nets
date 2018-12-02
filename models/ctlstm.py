@@ -17,51 +17,51 @@ class HawkesLSTM(nn.Module):
     https://arxiv.org/abs/1612.09328
     """
 
-    def __init__(self, input_size: int, hidden_dim: int):
+    def __init__(self, input_size: int, hidden_size: int):
         super(HawkesLSTM, self).__init__()
         self.process_dim = input_size
         self.trained_epochs = 0
         input_size += 1
         self.input_size = input_size  # embedding input size
-        self.hidden_dim = hidden_dim
+        self.hidden_size = hidden_size
         self.embed = nn.Embedding(input_size, self.process_dim, padding_idx=self.process_dim)
         self.input_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Sigmoid()
         )
         self.forget_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Sigmoid()
         )
         self.output_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Sigmoid()
         )
         self.input_target = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Sigmoid()
         )
         self.forget_target = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Sigmoid()
         )
         # activation will be tanh
         self.z_gate = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Tanh()
         )
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_dim, 1),
+            nn.Linear(self.process_dim + hidden_size, 1),
             nn.Softplus(beta=8.)
         )
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
-            nn.Linear(hidden_dim, self.process_dim, bias=False),  # no bias in the model
+            nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
             nn.Softplus(beta=5.)
         )
 
-    def init_hidden(self, batch_size: int = 1, device=None):
+    def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
         """
         Initialize the hidden state and the cell state.
         The initial cell state target is equal to the initial cell state.
@@ -70,8 +70,8 @@ class HawkesLSTM(nn.Module):
         Returns:
             (hidden, cell_state)
         """
-        (h0, c0) = (torch.zeros(batch_size, self.hidden_dim),
-                    torch.zeros(batch_size, self.hidden_dim))
+        (h0, c0) = (torch.zeros(batch_size, self.hidden_size),
+                    torch.zeros(batch_size, self.hidden_size))
         if device:
             h0 = h0.to(device)
             c0 = c0.to(device)
@@ -265,22 +265,38 @@ class HawkesLSTMGen:
         print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
         self.event_times = []
         self.event_types = []
-        self.decay_hist = []
-        self.hidden_hist = []
-        self.intens_hist = []
+        self.decay_hist: List[Tensor] = []
+        self.cell_hist: List[Tensor] = []
+        self.cell_target_hist: List[Tensor] = []
+        self.hidden_hist: List[Tensor] = []
+        self.intens_hist: List[Tensor] = []
         self.all_times_ = []
         self.event_intens = []
         self.record_intensity: bool = record_intensity
 
-    def generate_sequence(self, tmax: float) -> List[torch.Tensor]:
+    def restart_sequence(self):
+        self.event_times = []
+        self.event_types = []
+        self.decay_hist = []
+        self.cell_hist = []
+        self.cell_target_hist = []
+        self.hidden_hist = []
+        self.intens_hist = []
+        self.all_times_ = []
+        self.event_intens = []
+
+    def generate_sequence(self, tmax: float,
+                          record_intensity: bool = False) -> List[torch.Tensor]:
         """
         Generate a sequence of events distributed according to the neural Hawkes model.
-
-        WARNING: Check the model is in evaluation mode!
         """
-        # Reinitialize sequence
-        self.sequence_ = []
+        model = self.model
+        model.eval()
+        if record_intensity is None:
+            record_intensity = self.record_intensity
         s = 0.0
+        h0, c0 = model.init_hidden()
+        h0.normal_(std=0.1)
         self.sequence_.append(s)
         self.update_hidden_state(s)
         lbda_max = self.update_max_lambda()
@@ -309,13 +325,13 @@ class HawkesLSTMGen:
             print("\tratio\t{:}".format(intens / lbda_max))
             if u2 <= intens / lbda_max:
                 lbda_max = self.update_max_lambda()
-                self.lbda_max_seq_.append(lbda_max)
+                self.intens_hist.append(lbda_max)
                 self.update_hidden_state(s)
                 self.sequence_.append(s)
         self.sequence_.pop(0)
-        return self.sequence_
+        return self.sequence
 
-    def update_max_lambda(self) -> torch.Tensor:
+    def update_max_lambda(self, output, c_t, c_target) -> torch.Tensor:
         """
         Considering current time is s and knowing the last event, find a new maximum value of the intensity.
         
@@ -324,16 +340,16 @@ class HawkesLSTMGen:
             o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
         """
         w_alpha = self.model.intensity_layer[0].weight.data
-        cell_diff = self.cell_t - self.cell_target
-        mult_prefix = w_alpha * self.output
+        cell_diff = c_t - c_target
+        mult_prefix = w_alpha * output
         pos_prefactor = mult_prefix > 0
         pos_decr = pos_prefactor & (cell_diff >= 0)
-        p1 = torch.dot(mult_prefix[pos_decr], torch.tanh(self.cell_t[pos_decr]))
+        p1 = torch.dot(mult_prefix[pos_decr], torch.tanh(c_t[pos_decr]))
         pos_incr = pos_prefactor & (cell_diff < 0)
-        p2 = torch.dot(mult_prefix[pos_incr], torch.tanh(self.cell_target[pos_incr]))
+        p2 = torch.dot(mult_prefix[pos_incr], torch.tanh(c_target[pos_incr]))
         neg_decr = ~pos_prefactor & (cell_diff >= 0)
-        p3 = torch.dot(mult_prefix[neg_decr], torch.tanh(self.cell_target[neg_decr]))
+        p3 = torch.dot(mult_prefix[neg_decr], torch.tanh(c_target[neg_decr]))
         neg_incr = ~pos_prefactor & (cell_diff < 0)
-        p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(self.cell_t[neg_incr]))
+        p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(c_t[neg_incr]))
         lbda_tilde = p1 + p2 + p3 + p4
         return self.model.intensity_layer(lbda_tilde)

@@ -14,10 +14,10 @@ from utils.load_synth_data import one_hot_embedding
 from typing import List, Dict, Tuple
 
 
-def train_neural_ctlstm(model: HawkesLSTM, optimizer: Optimizer,
-                        seq_times: Tensor, seq_types: Tensor,
-                        seq_lengths: Tensor, tmax: float, batch_size: int,
-                        n_epochs: int, use_cuda: bool = False, use_jupyter: bool = False):
+def train_lstm(model: HawkesLSTM, optimizer: Optimizer,
+               seq_times: Tensor, seq_types: Tensor,
+               seq_lengths: Tensor, tmax: float, batch_size: int,
+               n_epochs: int, use_cuda: bool = False, use_jupyter: bool = False):
     """Train the Neural Hawkes CTLSTM on input sequence
 
     Args:

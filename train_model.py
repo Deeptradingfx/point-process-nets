@@ -12,7 +12,7 @@ from torch import optim
 
 from utils.load_synth_data import process_loaded_sequences
 from models.decayrnn import HawkesDecayRNN
-from train_functions import train_decayrnn
+from train_functions import train_decayrnn, train_lstm
 
 SEED = 52
 torch.manual_seed(SEED)
