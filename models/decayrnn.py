@@ -95,12 +95,10 @@ class HawkesDecayRNN(nn.Module):
         Returns:
             Shape: batch * hidden_size, batch * 1
         """
-        (h0, d0) = (torch.zeros(batch_size, self.hidden_size),
-                    torch.zeros(batch_size, 1))
+        h0 = torch.zeros(batch_size, self.hidden_size)
         if device:
             h0 = h0.to(device)
-            d0 = d0.to(device)
-        return h0, d0
+        return h0
 
     def compute_intensity(self, hidden: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """

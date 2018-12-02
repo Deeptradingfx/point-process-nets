@@ -61,20 +61,25 @@ class HawkesLSTM(nn.Module):
             nn.Softplus(beta=5.)
         )
 
-    def init_hidden(self, batch_size: int = 1):
+    def init_hidden(self, batch_size: int = 1, device=None):
         """
-        Initialize the hidden state, the cell state and cell state target.
+        Initialize the hidden state and the cell state.
+        The initial cell state target is equal to the initial cell state.
         The first dimension is the batch size.
 
         Returns:
-            (hidden, cell_state, cell_target)
+            (hidden, cell_state)
         """
-        return (torch.zeros(batch_size, self.hidden_dim),
-                torch.zeros(batch_size, self.hidden_dim),
-                torch.zeros(batch_size, self.hidden_dim))
+        (h0, c0) = (torch.zeros(batch_size, self.hidden_dim),
+                    torch.zeros(batch_size, self.hidden_dim))
+        if device:
+            h0 = h0.to(device)
+            c0 = c0.to(device)
+        return h0, c0
 
     def forward(self, dt: PackedSequence, seq_types: PackedSequence,
-                h0: Tensor, c0: Tensor):
+                h0: Tensor, c0: Tensor
+                ) -> Tuple[List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]]:
         """
         Forward pass of the CT-LSTM network.
 
@@ -92,7 +97,6 @@ class HawkesLSTM(nn.Module):
         Returns:
             outputs: computed by the output gates
             hidden_ti: decayed hidden states hidden state
-            cell_ti: cell state
             cells: cell states
             cell_targets: target cell states
             decays: decay parameters for each interval
@@ -145,7 +149,7 @@ class HawkesLSTM(nn.Module):
             )
             h_t = output * torch.tanh(c_t)  # decayed hidden state just before next event
             hiddens_ti.append(h_t)  # record it
-        return hiddens, hiddens_ti, outputs, cells, decays
+        return hiddens, hiddens_ti, outputs, cells, cell_targets, decays
 
     def compute_intensity(self, output: Tensor, c_i: Tensor, c_target_i: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """
