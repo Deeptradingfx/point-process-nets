@@ -89,7 +89,7 @@ class HawkesDecayRNN(nn.Module):
             decays.append(decay)
         return hiddens, decays, hiddens_ti
 
-    def initialize_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
+    def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor]:
         """
 
         Returns:
@@ -233,7 +233,7 @@ class HawkesRNNGen:
         self.intens_hist = []
         self.all_times_ = []
 
-    def generate_sequence(self, tmax: float):
+    def generate_sequence(self, tmax: float, record_intensity: bool = None):
         """
         Generate an event sequence on the interval [0, tmax].
 
@@ -244,11 +244,13 @@ class HawkesRNNGen:
             Sequence of event times with corresponding event intensities.
         """
         self.restart_sequence()
+        if record_intensity is None:
+            record_intensity = self.record_intensity
         model = self.model
         with torch.no_grad():
             s = torch.zeros(1)
             last_t = 0.
-            hidden, decay = model.initialize_hidden()
+            hidden, decay = model.init_hidden()
             hidden.normal_(std=0.1)  # set the hidden state to a N(0, 0.01) variable.
             intens = model.intensity_layer(hidden).numpy()
             self.hidden_hist.append(hidden.numpy())
@@ -267,7 +269,7 @@ class HawkesRNNGen:
                 du = ds.item() / 10
                 u = s.item() + du
                 s: Tensor = s + ds
-                if self.record_intensity:
+                if record_intensity:
                     # Track event intensities
                     h_u = hidden.clone()
                     while u < s.item():
@@ -374,7 +376,7 @@ def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
     seq_times = seq_times[:seq_length + 1]
     seq_types = seq_types[:seq_length + 1]
     model.eval()
-    hidden_t, decay = model.initialize_hidden()
+    hidden_t, decay = model.init_hidden()
     hidden = hidden_t.clone()
     dt_seq = seq_times[1:] - seq_times[:-1]
     assert seq_length == dt_seq.shape[0]

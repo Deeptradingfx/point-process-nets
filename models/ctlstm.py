@@ -10,14 +10,14 @@ from torch import nn
 from typing import Tuple, List
 
 
-class NeuralCTLSTM(nn.Module):
+class HawkesCTLSTM(nn.Module):
     """
     A continuous-time LSTM, defined according to Eisner & Mei's article
     https://arxiv.org/abs/1612.09328
     """
 
     def __init__(self, input_size: int, hidden_dim: int):
-        super(NeuralCTLSTM, self).__init__()
+        super(HawkesCTLSTM, self).__init__()
         self.process_dim = input_size
         self.trained_epochs = 0
         input_size += 1
@@ -96,7 +96,8 @@ class NeuralCTLSTM(nn.Module):
             c_target_i: cell target
             decay_i: decay
         """
-        v = torch.cat((seq_types, hidden_ti), dim=1)
+        x = self.embed(seq_types)
+        v = torch.cat((x, hidden_ti), dim=1)
         inpt = self.input_g(v)
         forget = self.forget_g(v)
         input_target = self.input_target(v)
@@ -202,23 +203,23 @@ class NeuralCTLSTM(nn.Module):
         return res
 
 
-class CTGenerator:
+class HawkesLSTMGen:
     """
     Sequence generator for the CT-LSTM model.
     """
 
-    def __init__(self, model: NeuralCTLSTM):
+    def __init__(self, model: HawkesCTLSTM, record_intensity: bool = True):
         self.model = model
-        with torch.no_grad():
-            hidden, c_t, c_target = model.init_hidden()
-            self.hidden_t = hidden
-            self.cell_t = c_t
-            self.cell_target = c_target
-            self.hidden_hist = []
-        self.sequence_ = []
-        self.lbda_max_seq_ = []
-        self.output = None
-        self.cell_decay = None
+        self.process_dim = model.input_size - 1  # process dimension
+        print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
+        self.event_times = []
+        self.event_types = []
+        self.decay_hist = []
+        self.hidden_hist = []
+        self.intens_hist = []
+        self.all_times_ = []
+        self.event_intens = []
+        self.record_intensity: bool = record_intensity
 
     def generate_sequence(self, tmax: float) -> List[torch.Tensor]:
         """
@@ -263,30 +264,6 @@ class CTGenerator:
         self.sequence_.pop(0)
         return self.sequence_
 
-    def update_hidden_state(self, t):
-        """
-        Update all cell states using forward pass on the model when an event occurs at t.
-        """
-        with torch.no_grad():
-            output, hidden_i, cell_i, c_t_actual, c_target_i, decay_i = self.model.forward(
-                t - self.sequence_[-1],
-                self.hidden_t,
-                self.cell_t,
-                self.cell_target
-            )
-            self.output = output
-            self.hidden_t = hidden_i  # New hidden state at t, start value on [t,\infty)
-            self.cell_t = cell_i  # New cell state at t, start value on [t,\infty)
-            self.cell_target = c_target_i  # New cell state target
-            self.cell_decay = decay_i  # New decay parameter until next event
-            self.hidden_hist.append({
-                "hidden": self.hidden_t,
-                "cell": self.cell_t,
-                "cell_target": self.cell_target,
-                "cell_decay": self.cell_decay,
-                "output": self.output
-            })
-
     def update_max_lambda(self) -> torch.Tensor:
         """
         Considering current time is s and knowing the last event, find a new maximum value of the intensity.
@@ -309,37 +286,3 @@ class CTGenerator:
         p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(self.cell_t[neg_incr]))
         lbda_tilde = p1 + p2 + p3 + p4
         return self.model.activation(lbda_tilde)
-
-    def make_ctlstm_sequence_plot(self, n: int, tmax: float):
-        """
-        Make an intensity plot for the CTLSTM model
-
-        Args:
-            self: Neural Hawkes generator instance
-            n: number of samples
-            tmax: max time horizon
-        """
-        sequence = self.sequence_
-        hidden_hist = self.hidden_hist
-        tls = np.linspace(0, tmax, n)
-        tls = np.sort(np.append(tls, sequence))
-        interv_counter = 0
-        y_vals = np.zeros_like(tls[:-1])
-        for i in range(len(tls)):
-            t = tls[i]
-            if t > sequence[-1]:
-                tls = tls[:i]
-                y_vals = y_vals[:i]
-                break
-            while t > sequence[interv_counter]:
-                interv_counter += 1
-            c_t = hidden_hist[interv_counter]['cell']
-            c_target = hidden_hist[interv_counter]['cell_target']
-            output = hidden_hist[interv_counter]['output']
-            decay = hidden_hist[interv_counter]['cell_decay']
-            hidden_t = output * torch.tanh(
-                c_target + (c_t - c_target) * torch.exp(-decay * (t - sequence[interv_counter]))
-            )
-            with torch.no_grad():
-                y_vals[i] = self.model.activation(hidden_t).item()
-        return tls, y_vals

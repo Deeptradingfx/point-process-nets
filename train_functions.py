@@ -8,14 +8,14 @@ import tqdm
 import numpy as np
 import sys
 from torch.optim import Optimizer
-from models.ctlstm import NeuralCTLSTM
+from models.ctlstm import HawkesCTLSTM
 from models import decayrnn
 from models.decayrnn import HawkesDecayRNN
 from utils.load_synth_data import one_hot_embedding
 from typing import List, Dict, Tuple
 
 
-def train_neural_ctlstm(model: NeuralCTLSTM, optimizer: Optimizer,
+def train_neural_ctlstm(model: HawkesCTLSTM, optimizer: Optimizer,
                         seq_times: Tensor, seq_types: Tensor,
                         seq_lengths: Tensor, tmax: float, batch_size: int,
                         n_epochs: int, use_jupyter: bool = False):
@@ -175,7 +175,7 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             packed_dt = nn.utils.rnn.pack_padded_sequence(batch_dt, batch_seq_lengths, batch_first=True)
             packed_types = nn.utils.rnn.pack_padded_sequence(batch_seq_types, batch_seq_lengths, batch_first=True)
             max_pack_batch_size = packed_dt.batch_sizes[0]
-            hidden0, decay = model.initialize_hidden(max_pack_batch_size, device)
+            hidden0, decay = model.init_hidden(max_pack_batch_size, device)
             # Data records
             hiddens, decays, hiddens_ti = model(packed_dt, packed_types, hidden0)
             batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
