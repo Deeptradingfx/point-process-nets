@@ -8,14 +8,14 @@ import tqdm
 import numpy as np
 import sys
 from torch.optim import Optimizer
-from models.ctlstm import HawkesCTLSTM
+from models.ctlstm import HawkesLSTM
 from models import decayrnn
 from models.decayrnn import HawkesDecayRNN
 from utils.load_synth_data import one_hot_embedding
 from typing import List, Dict, Tuple
 
 
-def train_neural_ctlstm(model: HawkesCTLSTM, optimizer: Optimizer,
+def train_neural_ctlstm(model: HawkesLSTM, optimizer: Optimizer,
                         seq_times: Tensor, seq_types: Tensor,
                         seq_lengths: Tensor, tmax: float, batch_size: int,
                         n_epochs: int, use_jupyter: bool = False):

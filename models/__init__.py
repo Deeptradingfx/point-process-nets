@@ -1,2 +1,2 @@
 from .decayrnn import HawkesDecayRNN
-from .ctlstm import HawkesCTLSTM
+from .ctlstm import HawkesLSTM

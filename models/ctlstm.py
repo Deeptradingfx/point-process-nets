@@ -11,14 +11,14 @@ from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 
 
-class HawkesCTLSTM(nn.Module):
+class HawkesLSTM(nn.Module):
     """
     A continuous-time LSTM, defined according to Eisner & Mei's article
     https://arxiv.org/abs/1612.09328
     """
 
     def __init__(self, input_size: int, hidden_dim: int):
-        super(HawkesCTLSTM, self).__init__()
+        super(HawkesLSTM, self).__init__()
         self.process_dim = input_size
         self.trained_epochs = 0
         input_size += 1
@@ -234,7 +234,7 @@ class HawkesLSTMGen:
     Sequence generator for the CT-LSTM model.
     """
 
-    def __init__(self, model: HawkesCTLSTM, record_intensity: bool = True):
+    def __init__(self, model: HawkesLSTM, record_intensity: bool = True):
         self.model = model
         self.process_dim = model.input_size - 1  # process dimension
         print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
