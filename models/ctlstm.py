@@ -26,38 +26,38 @@ class HawkesLSTM(nn.Module):
         self.hidden_dim = hidden_dim
         self.embed = nn.Embedding(input_size, self.process_dim, padding_idx=self.process_dim)
         self.input_g = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Sigmoid()
         )
         self.forget_g = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Sigmoid()
         )
         self.output_g = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Sigmoid()
         )
         self.input_target = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Sigmoid()
         )
         self.forget_target = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Sigmoid()
         )
         # activation will be tanh
         self.z_gate = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, hidden_dim),
+            nn.Linear(self.process_dim + hidden_dim, hidden_dim),
             nn.Tanh()
         )
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
-            nn.Linear(input_size + hidden_dim, 1),
+            nn.Linear(self.process_dim + hidden_dim, 1),
             nn.Softplus(beta=8.)
         )
         # activation for the intensity
         self.activation = nn.Sequential(
-            nn.Linear(hidden_dim, 1, bias=False),  # no bias in the model
+            nn.Linear(hidden_dim, self.process_dim, bias=False),  # no bias in the model
             nn.Softplus(beta=5.)
         )
 
