@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch import nn
+from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 
 
@@ -72,7 +73,8 @@ class HawkesCTLSTM(nn.Module):
                 torch.zeros(batch_size, self.hidden_dim),
                 torch.zeros(batch_size, self.hidden_dim))
 
-    def forward(self, dt: Tensor, seq_types: Tensor, hidden_ti, cell_ti, cell_target):
+    def forward(self, dt: PackedSequence, seq_types: PackedSequence,
+                h0: Tensor, c0: Tensor):
         """
         Forward pass of the CT-LSTM network.
 
@@ -81,45 +83,69 @@ class HawkesCTLSTM(nn.Module):
 
         Args:
             dt: time until next event
-                Shape: batch
+                Shape: seq_len * batch
             seq_types: one-hot encoded event sequence types
-                Shape: batch * input_size
-            hidden_ti: prev. hidden state, decayed since last event
-            cell_ti: prev. cell state, decayed since last event
-            cell_target: prev. cell state target
+                Shape: seq_len * batch * input_size
+            h0: initial hidden state
+            c0: initial cell state
 
         Returns:
-            output: result of the output gate
-            hidden_ti: hidden state
+            outputs: computed by the output gates
+            hidden_ti: decayed hidden states hidden state
             cell_ti: cell state
-            c_t_actual: decayed cell state
-            c_target_i: cell target
-            decay_i: decay
+            cells: cell states
+            cell_targets: target cell states
+            decays: decay parameters for each interval
         """
-        x = self.embed(seq_types)
-        v = torch.cat((x, hidden_ti), dim=1)
-        inpt = self.input_g(v)
-        forget = self.forget_g(v)
-        input_target = self.input_target(v)
-        forget_target = self.forget_target(v)
-        output = self.output_g(v)
-        # Not-quite-c
-        z_i = self.z_gate(v)
-        # Compute the decay parameter
-        decay_i = self.decay_layer(v)
-        # Update the cell state to c(t_i+)
-        cell_i = forget * cell_ti + inpt * z_i
-        # Update the cell state target
-        cell_target = forget_target * cell_target + input_target * z_i
-        # Decay the cell state to its value before the known next event at t+dt
-        c_t_actual = (
-                cell_target + (cell_i - cell_target) *
-                torch.exp(-decay_i * dt[:, None])
-        )
-        hidden_i = output * torch.tanh(cell_i)
-        h_t_actual = output * torch.tanh(c_t_actual)  # h(ti)
-        # Return our new states for the next pass to use
-        return output, hidden_i, h_t_actual, cell_i, c_t_actual, cell_target, decay_i
+        h_t = h0  # continuous hidden state
+        c_t = c0  # continuous cell state
+        c_target_i = c0  # cell state target
+        hiddens = []  # full, updated hidden states
+        hiddens_ti = []  # decayed hidden states, directly used in log-likelihood computation
+        outputs = []  # output from each LSTM pass
+        cells = []  # cell states at event times
+        cell_targets = []  # target cell states for each interval
+        decays = []  # decays computed at each event
+        max_seq_length = len(dt.batch_sizes)
+        beg_index = 0
+        # loop over all events
+        for j in range(max_seq_length):
+            batch_size = dt.batch_sizes[j]
+            h_t = h_t[:batch_size]
+            dt_sub_batch = dt.data[beg_index:(beg_index + batch_size)]
+            types_sub_batch = seq_types.data[beg_index:(beg_index + batch_size)]
+
+            x = self.embed(types_sub_batch)
+            v = torch.cat((x, h_t), dim=1)
+            inpt = self.input_g(v)
+            forget = self.forget_g(v)
+            input_target = self.input_target(v)
+            forget_target = self.forget_target(v)
+            output = self.output_g(v)
+            # Not-quite-c
+            z_i = self.z_gate(v)
+            # Compute the decay parameter
+            decay_i = self.decay_layer(v)
+            decays.append(decay_i)
+            # Update the cell state to c(t_i+)
+            cell_i = forget * c_t + inpt * z_i
+            cells.append(cell_i)  # record it
+
+            h_i = output * torch.tanh(cell_i)  # hidden state just after event
+            hiddens.append(h_i)  # record it
+
+            # Update the cell state target
+            c_target_i = forget_target * c_target_i + input_target * z_i
+            cell_targets.append(c_target_i)  # record
+            # Decay the cell state to its value before the known next event at t+dt
+            # used for the next pass in the loop
+            c_t = (
+                    c_target_i + (cell_i - c_target_i) *
+                    torch.exp(-decay_i * dt_sub_batch[:, None])
+            )
+            h_t = output * torch.tanh(c_t)  # decayed hidden state just before next event
+            hiddens_ti.append(h_t)  # record it
+        return hiddens, hiddens_ti, outputs, cells, decays
 
     def compute_intensity(self, dt: Tensor, output: Tensor,
                           cell_ti: Tensor, c_target_i: Tensor, decay: Tensor) -> Tensor:
