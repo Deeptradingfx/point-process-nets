@@ -147,52 +147,48 @@ class HawkesLSTM(nn.Module):
             hiddens_ti.append(h_t)  # record it
         return hiddens, hiddens_ti, outputs, cells, decays
 
-    def compute_intensity(self, dt: Tensor, output: Tensor,
-                          cell_ti: Tensor, c_target_i: Tensor, decay: Tensor) -> Tensor:
+    def compute_intensity(self, output: Tensor, c_i: Tensor, c_target_i: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """
-        Compute the intensity function.
+        Compute the intensity at time :math:`t`, given the LSTM parameters on the interval
+        :math:`(t_{i-1}, t_i]` and the elapsed time :math:`t-t_{i-1}` since the last
+        event.
 
         Args:
-            dt: time increments
-                dt[i] is the time elapsed since event t_i
-                if you want to compute at time s,
-                :math:`t_i <= t <= t_{i+1}`, then `dt[i] = t - t_i`.
-                Shape: seq_length * batch
+            dt: time elapsed since last event
+                Shape: batch
             output: LSTM cell output
                 Shape: seq_length * batch * hidden_dim
-            cell_ti: previous cell state
-            c_target_i: previous cell target
-            decay: decay[i] is the degrowth param. on range [t_i, t_{i+1}]
+            c_i: LSTM cell state just after the last event
+            c_target_i: cell state target
+            decay: decay speed parameter
 
         Shape:
-            batch_size * max_seq_length * hidden_dim
-
-        It is best to store the training history in variables for this.
+            batch_size * hidden_dim
         """
-        # Get the values of c(t)
-        c_t_after = (
-                c_target_i + (cell_ti - c_target_i) *
+        # Get the current continuous-time cell state
+        c_t = (
+                c_target_i + (c_i - c_target_i) *
                 torch.exp(-decay * dt)
         )
-        # Compute hidden state
-        h_t = output * torch.tanh(c_t_after)
+        # Compute the hidden state
+        h_t = output * torch.tanh(c_t)
         return self.activation(h_t)
 
-    def compute_loss(self, seq_times: Tensor, seq_types: Tensor, batch_sizes: Tensor, hiddens: List[Tensor],
-                     cell_hist: List[Tensor], cell_target_hist: List[Tensor], outputs: List[Tensor],
-                     decay_hist: List[Tensor], tmax: float) -> Tensor:
+    def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
+                     cells: List[Tensor], cell_targets: List[Tensor], outputs: List[Tensor],
+                     decays: List[Tensor], tmax: float) -> Tensor:
         """
         Compute the negative log-likelihood as a loss function.
         
         Args:
             seq_times: event occurrence timestamps
-            seq_types: types of events in the sequence
+            seq_onehot_types: types of events in the sequence, one hot encoded
             batch_sizes: batch sizes for each event sequence tensor, by length
-            hiddens: hidden state history
-            cell_hist: entire cell state history
-            cell_target_hist: cell state target values history
+            hiddens_ti: hidden states just before the events occur.
+            cells: entire cell state history
+            cell_targets: cell state target values history
             outputs: entire output history
-            decay_hist: entire decay history
+            decays: entire decay history
             tmax: temporal horizon
 
         Returns:
@@ -201,23 +197,41 @@ class HawkesLSTM(nn.Module):
         Shape:
             one-element tensor
         """
-        n_times = len(hiddens)
-        dt_seq = seq_times[1:] - seq_times[:-1]
+        n_batch = seq_times.size(0)
+        n_times = len(hiddens_ti)
+        dt_seq: Tensor = seq_times[1:] - seq_times[:-1]
+        device = dt_seq.device
         # Get the intensity process
-        intens_ev_times = [
-            self.activation(hiddens[i])
-            for i in range(n_times)
-        ]
-        # shape N * batch * K
-        intens_ev_times = nn.utils.rnn.pad_sequence(
-            intens_ev_times, batch_first=True, padding_value=1.0)
-        intens_ev_times_filtered: Tensor = torch.sum(intens_ev_times * seq_types[:-1], dim=2)
-        log_sum: Tensor = intens_ev_times_filtered.log().sum(dim=0)
-        # The integral term is computed using a Monte Carlo method
-        time_samples: Tensor = dt_seq*torch.rand_like(dt_seq)  # time increment samples for each interval
+        intens_at_evs: Tensor = [
+            self.intensity_layer(hiddens_ti[i])
+            for i in range(1, n_times)  # do not count the 0-th or End-of-sequence events
+        ]  # intensities just before the events occur
+        # shape batch * N * input_dim
+        intens_at_evs = nn.utils.rnn.pad_sequence(
+            intens_at_evs, padding_value=1.0)  # pad with 0 to get rid of the non-events
+        log_intensities = intens_at_evs.log()  # log intensities
+        # get the intensities of the types which are relevant to each event
+        # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
+        intens_ev_times_filtered = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=2)
+        # reduce on the type dim. (dropping the 0s in the process), then
+        # reduce the log-intensities on seq_times dim.
+        # shape (batch_size,)
+        log_sum = intens_ev_times_filtered.sum(dim=1)
+
+        # COMPUTE INTEGRAL TERM
+        # Computed using Monte Carlo method
+
+        # Take uniform time samples inside of each inter-event interval
+        # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
+        # dt_sequence = seq_times[1:] - seq_times[:-1]
+        n_mc_samples = 10
+        # shape N * batch * M_mc
+        taus = torch.rand(n_batch, n_times, n_mc_samples).to(device)
+        taus: Tensor = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
+
         intens_at_samples = [
-            self.compute_intensity(time_samples[i, :batch_sizes[i]], outputs[i],
-                                   cell_hist[i], cell_target_hist[i], decay_hist[i])
+            self.compute_intensity(outputs[i], cells[i], cell_targets[i], decays[i],
+                                   taus[i, :batch_sizes[i]])
             for i in range(n_times)
         ]
         intens_at_samples = nn.utils.rnn.pad_sequence(

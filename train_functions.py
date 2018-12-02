@@ -9,7 +9,6 @@ import numpy as np
 import sys
 from torch.optim import Optimizer
 from models.ctlstm import HawkesLSTM
-from models import decayrnn
 from models.decayrnn import HawkesDecayRNN
 from utils.load_synth_data import one_hot_embedding
 from typing import List, Dict, Tuple

@@ -155,7 +155,6 @@ class HawkesDecayRNN(nn.Module):
         """
         n_batch = seq_times.size(0)
         n_times = len(batch_sizes)
-        # import pdb; pdb.set_trace()
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape N * batch
         device = seq_times.device
         intens_at_evs: Tensor = [
@@ -172,7 +171,7 @@ class HawkesDecayRNN(nn.Module):
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)
-        first_term = intens_ev_times_filtered.sum(dim=1)
+        log_sum = intens_ev_times_filtered.sum(dim=1)
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
@@ -193,7 +192,7 @@ class HawkesDecayRNN(nn.Module):
         total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape batch * N * MC
         integral_estimates: Tensor = torch.sum(dt_seq[:, :, None] * total_intens_samples, dim=1)
         second_term: Tensor = integral_estimates.mean(dim=1)
-        res: Tensor = (- first_term + second_term).mean()  # average over the bath
+        res: Tensor = (- log_sum + second_term).mean()  # average over the bath
         return res
 
 
