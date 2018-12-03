@@ -1,3 +1,4 @@
 {"model_path": "../saved_models/HawkesDecayRNN-1d_hidden6-20181201-220235.pth", "data_path": "../data/simulated/hawkes_synthetic_exp_1d_20181201-205742.pkl"}
 {"model_path": "../saved_models/HawkesDecayRNN-1d_hidden8-20181202-140621.pth", "data_path": "../data/simulated/hawkes_synthetic_exp_1d_20181202-135203.pkl"}
 {"model_path": "../saved_models/HawkesDecayRNN-1d_hidden32-20181202-141923.pth", "data_path": "../data/simulated/hawkes_synthetic_exp_1d_20181202-135203.pkl"}
+{"model_path": "saved_models/HawkesLSTM-1d_hidden32-20181204-003504.pth", "data_path": "data/simulated/hawkes_synthetic_exp_1d_20181202-135203.pkl"}
