@@ -103,9 +103,9 @@ class HawkesLSTM(nn.Module):
         """
         h_t = h0  # continuous hidden state
         c_t = c0  # continuous cell state
-        c_target_i = c0  # cell state target
+        c_target = c0  # cell state target
         hiddens = []  # full, updated hidden states
-        hiddens_ti = []  # decayed hidden states, directly used in log-likelihood computation
+        hiddens_decayed = []  # decayed hidden states, directly used in log-likelihood computation
         outputs = []  # output from each LSTM pass
         cells = []  # cell states at event times
         cell_targets = []  # target cell states for each interval
@@ -113,21 +113,21 @@ class HawkesLSTM(nn.Module):
         max_seq_length = len(seq_dt.batch_sizes)
         beg_index = 0
         # loop over all events
-        for j in range(max_seq_length):
-            batch_size = seq_dt.batch_sizes[j]
+        for i in range(max_seq_length):
+            batch_size = seq_dt.batch_sizes[i]
             h_t = h_t[:batch_size]
             c_t = c_t[:batch_size]
-            c_target_i = c_target_i[:batch_size]
+            c_target = c_target[:batch_size]
             dt_sub_batch = seq_dt.data[beg_index:(beg_index + batch_size)]
             types_sub_batch = seq_types.data[beg_index:(beg_index + batch_size)]
 
             # Update the hidden states and LSTM parameters following the equations
             x = self.embed(types_sub_batch)
-            h_i, cell_i, c_target_i, output, decay_i = self.update_states(
-                x, h_t, c_t, c_target_i
+            h_i, cell_i, c_target, output, decay_i = self.update_states(
+                x, h_t, c_t, c_target
             )
             c_t: Tensor = (
-                    c_target_i + (cell_i - c_target_i) *
+                    c_target + (cell_i - c_target) *
                     torch.exp(-decay_i * dt_sub_batch[:, None])
             )
             h_t: Tensor = output * torch.tanh(c_t)  # decayed hidden state just before next event
@@ -136,11 +136,11 @@ class HawkesLSTM(nn.Module):
             decays.append(decay_i)
             cells.append(cell_i)  # record it
             hiddens.append(h_i)  # record it
-            cell_targets.append(c_target_i)  # record
-            hiddens_ti.append(h_t)  # record it
-        return hiddens, hiddens_ti, outputs, cells, cell_targets, decays
+            cell_targets.append(c_target)  # record
+            hiddens_decayed.append(h_t)  # record it
+        return hiddens, hiddens_decayed, outputs, cells, cell_targets, decays
 
-    def update_states(self, x: Tensor, h_t: Tensor, c_t: Tensor, c_target_i: Tensor
+    def update_states(self, x: Tensor, h_t: Tensor, c_t: Tensor, c_target: Tensor
                       ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         """
         Compute the updated LSTM paramters.
@@ -149,7 +149,7 @@ class HawkesLSTM(nn.Module):
             x:
             h_t:
             c_t:
-            c_target_i:
+            c_target:
 
         Returns:
             h_i: just-updated hidden state
@@ -169,17 +169,17 @@ class HawkesLSTM(nn.Module):
         # Not-quite-c
         z_i = self.z_gate(v)
         # Compute the decay parameter
-        decay_i = self.decay_layer(v)
+        decay = self.decay_layer(v)
         # Update the cell state to c(t_i+)
-        cell_i = forget * c_t + inpt * z_i
+        c_i = forget * c_t + inpt * z_i
 
-        h_i: Tensor = output * torch.tanh(cell_i)  # hidden state just after event
+        h_i: Tensor = output * torch.tanh(c_i)  # hidden state just after event
 
         # Update the cell state target
-        c_target_i: Tensor = forget_target * c_target_i + input_target * z_i
+        c_target: Tensor = forget_target * c_target + input_target * z_i
         # Decay the cell state to its value before the known next event at t+dt
         # used for the next pass in the loop
-        return h_i, cell_i, c_target_i, output, decay_i
+        return h_i, c_i, c_target, output, decay
 
     def compute_intensity(self, output: Tensor, c_i: Tensor, c_target_i: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
         """
