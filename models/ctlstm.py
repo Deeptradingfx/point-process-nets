@@ -52,7 +52,7 @@ class HawkesLSTM(nn.Module):
         )
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, 1),
+            nn.Linear(self.process_dim + hidden_size, hidden_size),
             nn.Softplus(beta=8.)
         )
         # activation for the intensity
@@ -348,7 +348,7 @@ class HawkesLSTMGen:
                 ds: torch.Tensor = -1. / max_lbda * np.log(u1)
                 if record_intensity:
                     u = s.item()
-                    du = ds.item() / 20  # sampling interval for intensity record
+                    du = ds.item() / 10  # sampling interval for intensity record
                 s: Tensor = s + ds.item()  # Increment s
                 if s > tmax:
                     break
@@ -389,6 +389,7 @@ class HawkesLSTMGen:
                     last_t = s.item()
                     self.all_times_.append(last_t)  # record the time and intensity a second time
                     self.intens_hist.append(intens)
+                    self.decay_hist.append(decay)
                     self.event_intens.append(intens)
                     self.event_types.append(k)
                     self.event_times.append(last_t)
