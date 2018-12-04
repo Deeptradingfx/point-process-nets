@@ -72,10 +72,10 @@ def train_lstm(model: HawkesLSTM, optimizer: Optimizer,
             packed_dt = nn.utils.rnn.pack_padded_sequence(batch_dt, batch_seq_lengths, batch_first=True)
             packed_types = nn.utils.rnn.pack_padded_sequence(batch_seq_types, batch_seq_lengths, batch_first=True)
             max_pack_batch_size = packed_dt.batch_sizes[0]
-            h0, c0 = model.init_hidden(max_pack_batch_size, device)
+            h0, c0, c_target0 = model.init_hidden(max_pack_batch_size, device)
             # Data records
             hiddens, hiddens_ti, outputs, cells, cell_targets, decays = model(
-                packed_dt, packed_types, h0, c0)
+                packed_dt, packed_types, h0, c0, c_target0)
             batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
             batch_onehot = batch_onehot[:, :, :model.process_dim]
 
