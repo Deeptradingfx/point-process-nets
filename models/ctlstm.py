@@ -181,35 +181,6 @@ class HawkesLSTM(nn.Module):
         # used for the next pass in the loop
         return h_i, c_i, c_target, output, decay
 
-    def compute_intensity(self, output: Tensor, c_i: Tensor, c_target_i: Tensor, decay: Tensor, dt: Tensor) -> Tensor:
-        """
-        Compute the intensity at time :math:`t`, given the LSTM parameters on the interval
-        :math:`(t_{i-1}, t_i]` and the elapsed time :math:`t-t_{i-1}` since the last
-        event.
-
-        Args:
-            dt: time elapsed since last event
-                Shape: batch
-            output: LSTM cell output
-                Shape: seq_length * batch * hidden_dim
-            c_i: LSTM cell state just after the last event
-            c_target_i: cell state target
-            decay: decay speed parameter
-
-        Shape:
-            batch_size * hidden_dim
-        """
-        # Get the current continuous-time cell state
-        c_t = (
-                c_target_i + (c_i - c_target_i) *
-                torch.exp(-decay * dt)
-        )
-        # Compute the hidden state
-        h_t: Tensor = output * torch.tanh(c_t)
-        if h_t.ndimension() > 2:
-            return self.intensity_layer(h_t.transpose(1, 2)).transpose(1, 2)
-        return self.intensity_layer(h_t)
-
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
                      cells: List[Tensor], cell_targets: List[Tensor], outputs: List[Tensor],
                      decays: List[Tensor], tmax: float) -> Tensor:
@@ -259,13 +230,14 @@ class HawkesLSTM(nn.Module):
         # shape N * batch * M_mc
         taus = torch.rand(n_batch, n_times, 1, n_mc_samples).to(device)
         taus: Tensor = dt_seq[:, :, None, None] * taus  # inter-event times samples)
-        intens_at_samples = [
-            self.compute_intensity(
-                outputs[i].unsqueeze(-1), cells[i].unsqueeze(-1),
-                cell_targets[i].unsqueeze(-1), decays[i].unsqueeze(-1),
-                taus[:batch_sizes[i], i])
-            for i in range(n_times)
-        ]
+        intens_at_samples = []
+        for i in range(n_times):
+            c_target_i = cell_targets[i].unsqueeze(-1)
+            c_i = cells[i].unsqueeze(-1)
+            c_t = c_target_i + (c_i - c_target_i)*torch.exp(-decays[i].unsqueeze(-1)*taus[:batch_sizes[i], i])
+            h_t = outputs[i].unsqueeze(-1) * torch.tanh(c_t)
+            h_t = h_t.transpose(1, 2)
+            intens_at_samples.append(self.intensity_layer(h_t).transpose(1, 2))
         intens_at_samples = nn.utils.rnn.pad_sequence(
             intens_at_samples, padding_value=0.0)  # shape N * batch * K * MC
         total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape N * batch * MC
