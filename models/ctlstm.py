@@ -245,7 +245,8 @@ class HawkesLSTMGen:
         self.event_intens = []
         self.decay_hist: List[Tensor] = []
         self.intens_hist: List[Tensor] = []
-        self.all_times_ = []
+        self._plot_times = []  # used for plotting
+        self.lbda_ub = []
         self.record_intensity: bool = record_intensity
 
     def _restart_sequence(self):
@@ -254,7 +255,8 @@ class HawkesLSTMGen:
         self.event_intens = []
         self.decay_hist = []
         self.intens_hist = []
-        self.all_times_ = []
+        self._plot_times = []
+        self.lbda_ub = []
 
     def generate_sequence(self, tmax: float, record_intensity: bool = False):
         """
@@ -272,102 +274,106 @@ class HawkesLSTMGen:
         with torch.no_grad():
             last_t = 0.0
             s = torch.zeros(1)
-            h0, c0, c_target0 = model.init_hidden()
+            h0, c0, _ = model.init_hidden()
             h0.normal_(std=0.1)
             c0.normal_(std=0.1)
             h_t = h0
             c_t = c0
-            c_target = c_target0
+            c_target = c0.clone()
             # Compute the first hidden states from the noise, at t = 0
-            x0 = torch.zeros(1, 1)  # the starter event has an embedding of [ 0. ]
+            k0 = torch.LongTensor([self.process_dim])
+            x0 = model.embed(k0)  # the starter event has an embedding of [ 0. ]
             c_t, c_target, output, decay = model.lstm_cell(
                 x0, h_t, c_t, c_target
             )
             intens = model.intensity_layer(output * torch.tanh(c_t))
+            # Cell state at the last event
+            c_t_last = c_t
             # Record everything
             self.event_times.append(last_t)
             self.event_types.append(self.process_dim)
             self.event_intens.append(intens.numpy())
             self.decay_hist.append(decay.numpy())
-            self.all_times_.append(last_t)
+            self._plot_times.append(last_t)
             self.intens_hist.append(intens.numpy())
-            max_lbda = intens
+            max_lbda = self.update_lbda_bound(output, c_t, c_target).sum()
+            self.lbda_ub.append(max_lbda.numpy())
+            # max_lbda = 3.0
 
             while last_t <= tmax:
-                u1 = torch.rand(1)
-                ds: torch.Tensor = -1. / max_lbda * np.log(u1)
-                u = s.item()
-                du = min(0.1, ds.item()/10)  # sampling interval for intensity record
+                # print(max_lbda)
+                ds: torch.Tensor = torch.empty_like(s)
+                ds.exponential_(max_lbda.item())
                 s: Tensor = s + ds.item()  # Increment s
                 if s > tmax:
                     break
-                if record_intensity:
-                    c_u = c_t
-                    while u < s.item():
-                        self.all_times_.append(u)
-                        c_u = c_target + (c_u - c_target)*torch.exp(-decay*du)
-                        h_u = output * torch.tanh(c_u)
-                        lbda_u = model.intensity_layer(h_u)
-                        self.intens_hist.append(lbda_u)
-                        u += du
+                time_elapsed_last = s - last_t
                 # Compute the current intensity
                 # Compute what the cell state at s is
                 # Decay the hidden state
-                c_t = c_target + (c_t - c_target)*torch.exp(-decay*ds)
+                c_t = c_target + (c_t_last - c_target)*torch.exp(-decay*time_elapsed_last)
                 h_t = output * torch.tanh(c_t)
                 # Apply intensity layer
                 intens: Tensor = self.model.intensity_layer(h_t)
-                self.all_times_.append(s.item())  # record this time and intensity value
-                self.intens_hist.append(intens.numpy())
-                u2 = np.random.rand()  # random in [0,1]
-                total_intens = intens.sum(dim=1, keepdim=True)
-                ratio = intens/max_lbda
+                if record_intensity:
+                    self._plot_times.append(s.item())  # record this time and intensity value
+                    self.intens_hist.append(intens.numpy())
+                u2 = torch.rand(1)  # random in [0,1]
+                total_intens = intens.sum(dim=1)
+                ratio = total_intens/max_lbda
                 if u2 <= ratio:
                     # shape 1 * K
                     # probability distribution for the types
                     weights: Tensor = intens / total_intens  # ratios of types intensities to aggregate
-                    res = torch.multinomial(weights, 1)
-                    k = res.item()
+                    k_vector = torch.multinomial(weights, 1)
+                    k = k_vector.item()
                     # accept
-                    x = model.embed(res[0])
+                    x = model.embed(k_vector[0])
                     # Bump the hidden states
-                    c_t, c_target, output, decay = model.lstm_cell(
+                    c_t_last, c_target, output, decay = model.lstm_cell(
                         x, h_t, c_t, c_target)
-                    max_lbda = self.update_max_lambda(output, c_t, c_target)
+                    h_t = output * torch.tanh(c_t_last)
+                    intens = model.intensity_layer(h_t)
+                    max_lbda = self.update_lbda_bound(output, c_t_last, c_target)
+                    max_lbda = 10*max_lbda.sum()
+                    self.lbda_ub.append(max_lbda.numpy())
+                    # max_lbda = 3.0
                     last_t = s.item()
-                    self.all_times_.append(last_t)  # record the time and intensity a second time
-                    self.intens_hist.append(intens)
-                    self.decay_hist.append(decay)
-                    self.event_intens.append(intens)
+                    self._plot_times.append(last_t)  # record the time and intensity a second time
+                    self.intens_hist.append(intens.numpy())
+                    self.decay_hist.append(decay.numpy())
+                    self.event_intens.append(intens.numpy())
                     self.event_types.append(k)
                     self.event_times.append(last_t)
 
-    def update_max_lambda(self, output, c_t: Tensor, c_target: Tensor) -> torch.Tensor:
-        """
-        Considering current time is s and knowing the last event, find a new maximum value of the intensity.
+    def update_lbda_bound(self, output: Tensor, c_t: Tensor, c_target: Tensor) -> torch.Tensor:
+        r"""
+        Considering current time is s and knowing the last event, find a new upper bound for the intensities.
         
-        Each term in the sum defining pre_lambda (intensity before activation) is of the form
+        Each term in the sum defining ``pre_lambda`` (intensity before activation) is of the form
+
         .. math::
-            o_k\tanh([c_{i+1}]_k + ([c_{i+1}]_k - [\bar c_{i+1}]_k)\exp(-\delta_k(t - t_i)))
+            \tilde{\lambda}_t =
+            w^T o\,\tanh\left(c_{i+1} + (c_{i+1} - \bar c_{i+1}\right)\exp(-\delta(t - t_i)))
+
+
         """
         w_alpha = self.model.intensity_layer[0].weight.data
-        cell_diff = c_t - c_target
-        mult_prefix = w_alpha * output
-        pos_prefactor = mult_prefix > 0
-        pos_decr = pos_prefactor & (cell_diff >= 0)
-        p1 = torch.dot(mult_prefix[pos_decr], torch.tanh(c_t[pos_decr]))
-        pos_incr = pos_prefactor & (cell_diff < 0)
-        p2 = torch.dot(mult_prefix[pos_incr], torch.tanh(c_target[pos_incr]))
-        neg_decr = ~pos_prefactor & (cell_diff >= 0)
-        p3 = torch.dot(mult_prefix[neg_decr], torch.tanh(c_target[neg_decr]))
-        neg_incr = ~pos_prefactor & (cell_diff < 0)
-        p4 = torch.dot(mult_prefix[neg_incr], torch.tanh(c_t[neg_incr]))
-        lbda_tilde = p1 + p2 + p3 + p4
+        cell_gap: Tensor = c_t - c_target
+        cell_gap = cell_gap.expand_as(w_alpha)
+        increasing_mask_ = (cell_gap * w_alpha < 0.0)
+        cell_gap[increasing_mask_] = 0.0
+        decreasing_mask_ = ~increasing_mask_
+        cell_gap[decreasing_mask_] = 1.0
+        # upper bound matrix
+        upper_bounds: Tensor = w_alpha * output * torch.tanh(c_target + cell_gap)  # shape K * D
+        pre_lbda = upper_bounds.sum(dim=1)
         # compute the intensity using the Softplus inside the intensity layer of the model
-        res = self.model.intensity_layer[1](lbda_tilde)
+        res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
 
     def plot_events_and_intensity(self, model_name: str = None):
+        assert self.record_intensity  # if not, then refuse to plot
         import matplotlib.pyplot as plt
         gen_seq_times = self.event_times
         gen_seq_types = self.event_types
@@ -378,12 +384,12 @@ class HawkesLSTMGen:
         fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
                                figsize=(10, 4.5))
         ax: plt.Axes
-        inpt_size = self.process_dim+1
+        inpt_size = self.process_dim
         ax.set_xlabel('Time $t$ (s)')
         intens_hist = np.stack(self.intens_hist)[:, 0]
         labels = ["type {}".format(i) for i in range(self.process_dim)]
         for y, lab in zip(intens_hist.T, labels):
-            ax.plot(self.all_times_, y, linewidth=.7, label=lab)
+            ax.plot(self._plot_times, y, linewidth=.7, label=lab)
         ax.set_ylabel(r"Intensities $\lambda^i_t$")
         title = "Event arrival times and intensities for generated sequence"
         if model_name:
@@ -393,15 +399,24 @@ class HawkesLSTMGen:
         ts_y = np.stack(self.event_intens)[:, 0]
         for k in range(inpt_size):
             mask = evt_types == k
+            print(k, end=': ')
             if k == self.process_dim:
-                label = "start event".format(k)
-                y = self.intens_hist[0]*np.ones_like(evt_times[mask])
+                print("starter type")
+                # label = "start event".format(k)
+                y = self.intens_hist[0].sum(axis=1)
             else:
+                print("type {}".format(k))
                 y = ts_y[mask, k]
-                label = "type {} event".format(k)
+                # label = "type {} event".format(k)
+            print(y.shape)
             ax.scatter(evt_times[mask], y, s=9, zorder=5,
-                       label=label, alpha=0.8)
-            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.5)
+                       alpha=0.8)
+            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='-', alpha=0.8)
+
+        # Useful for debugging the sampling for the intensity curve.
+        for s in self._plot_times:
+            ax.vlines(s, ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.6, colors='red')
+
         ax.set_ylim(*ylims)
         ax.legend()
         fig.tight_layout()

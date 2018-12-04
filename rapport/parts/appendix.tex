@@ -33,4 +33,32 @@ En utilisant la relation de Chasles, on peut construire l'estimateur (non biais�
 \end{equation}
 où les $\tau_i^{(m)}\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}^{(m)}\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de l'intervalle auquel appartient $\tau$ est levé, mais on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
 
+\subsection{Simulation de processus}
+
+\paragraph{Algorithme de \textit{thinning}}
+
+\paragraph{Calcul du majorant $\lambda^*$ pour le LSTM} Le calcul est un peu délicat, et n'est pas détaillé dans \autocite{meiEisnerNeuralHawkes} (les seules précisions apportées sont pour le modèle Hawkes non-linéaire).
+La fonction d'activation $f$ est toujours strictement croissante, donc il suffit en fait de majorer les composantes de $W_lh(t)$. Chaque composante s'écrit sous la forme d'une somme de termes
+\begin{equation}\label{eq:hiddenStateComponent}
+	\sum_{j=1}^{D} {[W_l]}_{kj} \underbrace{{[o_i]}_j}_{>0}
+	\tanh \left( [\bar{c}_{i}]_j + \left([c_{i}]_j - [\bar{c}_{i}]_j \right)e^{-[\delta_i]_j (t-t_{i-1})}
+	\right)
+\end{equation}
+Le sens de variation de chaque terme dépend du signe de l'élément de $W_l$ et de $c_i - \bar{c_i}$:
+\begin{itemize}
+	\item Si ${[W_l]}_{kj}{[c_i - \bar{c}_i]}_{j} < 0$ alors le terme correspondant est croissant, et on le majore par sa limite quand $t\to\infty$
+	\[
+		\overline{M}_{kj} = {[W_l]}_{kj} {[o_i]}_j \tanh \left( [\bar{c}_{i}]_j\right)
+	\]
+	\item Sinon, le terme est décroissant, et on le majore par sa valeur en $t_{i-1}^{+}$
+	\[
+		\overline{M}_{kj} = {[W_l]}_{kj} {[o_i]}_j \tanh \left( [c_{i}]_j\right)
+	\]
+\end{itemize}
+Ces majorants restent valables sur tout l'intervalle $(t_{i-1}, t_i]$, et sont calculés à chaque événement. Ils forment une matrice $\overline{M}\in\RR^{K\times D}$. L'expression du majorant de chaque composante est donné en modifiant \eqref{eq:hiddenStateComponent} par
+\[
+	{[\lambda^{*}]}_k := \sum_{j=1}^{D} \overline{M}_{kj},\quad k\in \llbracket 1, K\rrbracket
+\]
+
+
 \end{document}
