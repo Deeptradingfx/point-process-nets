@@ -315,9 +315,8 @@ class HawkesLSTMGen:
                 h_t = output * torch.tanh(c_t)
                 # Apply intensity layer
                 intens: Tensor = self.model.intensity_layer(h_t)
-                if record_intensity:
-                    self._plot_times.append(s.item())  # record this time and intensity value
-                    self.intens_hist.append(intens.numpy())
+                self._plot_times.append(s.item())  # record this time and intensity value
+                self.intens_hist.append(intens.numpy())
                 u2 = torch.rand(1)  # random in [0,1]
                 total_intens = intens.sum(dim=1)
                 ratio = total_intens/max_lbda
@@ -372,8 +371,8 @@ class HawkesLSTMGen:
         res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
 
-    def plot_events_and_intensity(self, model_name: str = None):
-        assert self.record_intensity  # if not, then refuse to plot
+    def plot_events_and_intensity(self, model_name: str = None, debug=False):
+        assert self.record_intensity
         import matplotlib.pyplot as plt
         gen_seq_times = self.event_times
         gen_seq_types = self.event_types
@@ -392,8 +391,9 @@ class HawkesLSTMGen:
             ax.plot(self._plot_times, y, linewidth=.7, label=lab)
         ax.set_ylabel(r"Intensities $\lambda^i_t$")
         title = "Event arrival times and intensities for generated sequence"
-        if model_name:
-            title += " ({})".format(model_name)
+        if model_name is None:
+            model_name = self.model.__class__.__name__
+        title += " ({})".format(model_name)
         ax.set_title(title)
         ylims = ax.get_ylim()
         ts_y = np.stack(self.event_intens)[:, 0]
@@ -408,14 +408,14 @@ class HawkesLSTMGen:
                 print("type {}".format(k))
                 y = ts_y[mask, k]
                 # label = "type {} event".format(k)
-            print(y.shape)
             ax.scatter(evt_times[mask], y, s=9, zorder=5,
                        alpha=0.8)
             ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='-', alpha=0.8)
 
         # Useful for debugging the sampling for the intensity curve.
-        for s in self._plot_times:
-            ax.vlines(s, ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.6, colors='red')
+        if debug:
+            for s in self._plot_times:
+                ax.vlines(s, ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.6, colors='red')
 
         ax.set_ylim(*ylims)
         ax.legend()

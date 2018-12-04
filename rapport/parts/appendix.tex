@@ -23,7 +23,7 @@ permet d'obtenir les intensités par produit et réduction.
 \[
 \bar{\Lambda}_M = \frac{1}{M}\sum_{m=1}^{M}T\lambda_{\tau^{(m)}}\cdot\mathbf 1
 \]
-est un estimateur non biaisé et convergent de l'intégrale, suggéré dans \cite[16]{meiEisnerNeuralHawkes}. Mais il pose un problème: étant donné que l'expression de $\lambda_t$ est définie par morceaux, il faut savoir à quel intervalle $(t_{i-1}, t_i]$ appartient $\tau$.
+est un estimateur non biaisé et convergent de l'intégrale, suggéré dans \cite[16]{meiEisnerNeuralHawkes}. Mais il est peu commode pour le calcul en pratique: étant donné le temps $\tau$, il faut savoir à quel intervalle $(t_{i-1}, t_i]$ il appartient pour calculer $\lambda_\tau$, puisque l'expression de l'intensité est définie par morceaux.
 
 En utilisant la relation de Chasles, on peut construire l'estimateur (non biaisé et convergent) suivant:
 \begin{equation}
@@ -31,13 +31,21 @@ En utilisant la relation de Chasles, on peut construire l'estimateur (non biais�
 \approx
 \int_0^T \lambda_t\,dt
 \end{equation}
-où les $\tau_i^{(m)}\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}^{(m)}\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de l'intervalle auquel appartient $\tau$ est levé, mais on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
+où les $\tau_i^{(m)}\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}^{(m)}\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de savoir à quel intervalle appartient $\tau$ est levé. Cependant, on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
 
 \subsection{Simulation de processus}
 
-\paragraph{Algorithme de \textit{thinning}}
+\paragraph{Algorithme de \textit{thinning}} \citeauthor{ogata1981} propose un procédé général pour la simulation de processus ponctuels suivant une intensité stochastique $\lambda$ adaptée à une filtration $\mathds{F}$. Il s'agit de trouver un processus constant par morceaux et $\mathds{F}$-adapté $\{\lambda_t^*\}$ tel que $\sum_{k=1}^{K}\lambda^k_t \leq \lambda_t^*$, et de simuler les temps d'arrivée des événements et leur type par une méthode de rejet. \autocite{ogata1981}
 
-\paragraph{Calcul du majorant $\lambda^*$ pour le LSTM} Le calcul est un peu délicat, et n'est pas détaillé dans \autocite{meiEisnerNeuralHawkes} (les seules précisions apportées sont pour le modèle Hawkes non-linéaire).
+En pratique, pour des processus où l'intensité dépend du passé (comme Hawkes ou les modèles neuronaux), le processus majorant $\lambda^*$ doit être construit en même temps, au fur et à mesure que l'on simule des événements. Pour nos modèles, étant donné un événement en $t_i$, l'intensité du processus évolue de manière déterministe conditionnellement à $\mathcal{F}_{t_i}$ pour $t_i\leq t\leq t_{i+1}$: on peut donc calculer un majorant $\lambda_i^* = \lambda^*_{t_i}$.
+
+Une méthode efficace décrite dans la littérature est de choisir la date du prochain événement selon un processus de poisson déterministe d'intensité ${\{\sum_k\lambda^k_t\}}_{t\geq t_i}$ par rejet: on simule des temps $s_j^*\geq t_i$ distribués selon un processus de Poisson homogène d'intensité $\lambda_i^*$, jusqu'à en accepter un comme étant $t_{i+1}$ avec probabilité $\sum_k\lambda^k_{s_j^*}/\lambda^*_{i} \leq 1$. Le choix de $k_{i+1}$ est effectué en sélectionnant un élément $k$ dans $\llbracket 1,K\rrbracket$ avec la distribution $\PP(k_{i+1} = k) = \lambda^{k}_{t_{i+1}}/\sum_p \lambda^p_{t_{i+1}}$. \cite{meiEisnerNeuralHawkes,ogata1981}
+
+Pour avoir un algorithme de simulation efficace, on chercherait à avoir $\lambda^*$ aussi proche de $\lambda$ que possible, de sorte à ce que la méthode de rejet ait une forte probabilité d'accepter un des premiers temps $s_j^*$ proposés.\footnotemark
+
+\footnotetext{Pour réaliser des courbes d'intensité des processus simulés, on peut choisir de simuler les $s_j^*$ selon un processus de Poisson d'intensité $10\lambda^*$, et enregistrer les points $(s_j^*, \lambda^k_{s_j^*})$ supplémentaires pour faire le graphe.}
+
+\paragraph{Recherche du majorant $\lambda^*$ pour le LSTM} Le calcul est un peu délicat, et n'est pas détaillé dans \autocite{meiEisnerNeuralHawkes} (les seules précisions apportées sont pour le modèle Hawkes non-linéaire).
 La fonction d'activation $f$ est toujours strictement croissante, donc il suffit en fait de majorer les composantes de $W_lh(t)$. Chaque composante s'écrit sous la forme d'une somme de termes
 \begin{equation}\label{eq:hiddenStateComponent}
 	\sum_{j=1}^{D} {[W_l]}_{kj} \underbrace{{[o_i]}_j}_{>0}
