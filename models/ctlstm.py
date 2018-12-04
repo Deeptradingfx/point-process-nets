@@ -245,26 +245,20 @@ class HawkesLSTM(nn.Module):
         # shape batch * N * input_dim
         intens_at_evs = nn.utils.rnn.pad_sequence(
             intens_at_evs, padding_value=1.0)  # pad with 0 to get rid of the non-events
-        log_intensities = intens_at_evs.log()  # log intensities
+        log_intensities: Tensor = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intens_ev_times_filtered = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=2)
-        # reduce on the type dim. (dropping the 0s in the process), then
-        # reduce the log-intensities on seq_times dim.
-        # shape (batch_size,)
-        log_sum = intens_ev_times_filtered.sum(dim=1)
-
+        log_sum = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=(2, 1))  # shape batch
         # COMPUTE INTEGRAL TERM
         # Computed using Monte Carlo method
 
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
-        n_mc_samples = 10
+        n_mc_samples = 1
         # shape N * batch * M_mc
-        taus = torch.rand(n_batch, n_times, n_mc_samples).to(device)
-        taus: Tensor = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
-        taus.unsqueeze_(2)
+        taus = torch.rand(n_batch, n_times, 1, n_mc_samples).to(device)
+        taus: Tensor = dt_seq[:, :, None, None] * taus  # inter-event times samples)
         intens_at_samples = [
             self.compute_intensity(
                 outputs[i].unsqueeze(-1), cells[i].unsqueeze(-1),
