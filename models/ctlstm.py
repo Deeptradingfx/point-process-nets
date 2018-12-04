@@ -11,6 +11,61 @@ from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 
 
+class HawkesLSTMCell(nn.Module):
+
+    def __init__(self, input_dim: int, hidden_size: int):
+        super(HawkesLSTMCell, self).__init__()
+        self.input_g = nn.Linear(input_dim + hidden_size, hidden_size)
+        self.forget_g = nn.Linear(input_dim + hidden_size, hidden_size)
+        self.output_g = nn.Linear(input_dim + hidden_size, hidden_size)
+        self.input_target = nn.Linear(input_dim + hidden_size, hidden_size)
+        self.forget_target = nn.Linear(input_dim + hidden_size, hidden_size)
+        # activation will be tanh
+        self.z_gate = nn.Linear(input_dim + hidden_size, hidden_size)
+        # Cell decay factor, identical for all hidden dims
+        self.decay_layer = nn.Sequential(
+            nn.Linear(input_dim + hidden_size, hidden_size),
+            nn.Softplus(beta=3.))
+
+    def forward(self, x, h_t, c_t, c_target) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        """
+        Compute the updated LSTM paramters.
+
+        Args:s
+            x: event type embedding
+            h_t:
+            c_t:
+            c_target:
+
+        Returns:
+            h_i: just-updated hidden state
+            h_t: hidden state just before next event
+            cell_i: just-updated cell state
+            c_t: cell state decayed to before next event
+            c_target_i: cell state target before the next event
+            output: LSTM output
+            decay_i: rate of decay for the cell state
+        """
+        v = torch.cat((x, h_t), dim=1)
+        inpt = torch.sigmoid(self.input_g(v))
+        forget = torch.sigmoid(self.forget_g(v))
+        input_target = torch.sigmoid(self.input_target(v))
+        forget_target = torch.sigmoid(self.forget_target(v))
+        output = torch.sigmoid(self.output_g(v))  # compute the LSTM network output
+        # Not-quite-c
+        z_i = torch.tanh(self.z_gate(v))
+        # Compute the decay parameter
+        decay = self.decay_layer(v)
+        # Update the cell state to c(t_i+)
+        c_i = forget * c_t + inpt * z_i
+        # h_i = output * torch.tanh(c_i)  # hidden state just after event
+        # Update the cell state target
+        c_target = forget_target * c_target + input_target * z_i
+        # Decay the cell state to its value before the known next event at t+dt
+        # used for the next pass in the loop
+        return c_i, c_target, output, decay
+
+
 class HawkesLSTM(nn.Module):
     """
     A continuous-time LSTM, defined according to Eisner & Mei's article
@@ -25,34 +80,11 @@ class HawkesLSTM(nn.Module):
         self.input_size = input_size  # embedding input size
         self.hidden_size = hidden_size
         self.embed = nn.Embedding(input_size, self.process_dim, padding_idx=self.process_dim)
-        self.input_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Sigmoid())
-        self.forget_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Sigmoid())
-        self.output_g = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Sigmoid())
-        self.input_target = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Sigmoid())
-        self.forget_target = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Sigmoid())
-        # activation will be tanh
-        self.z_gate = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Tanh())
-        # Cell decay factor, identical for all hidden dims
-        self.decay_layer = nn.Sequential(
-            nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=3.))
+        self.lstm_cell = HawkesLSTMCell(self.process_dim, hidden_size)
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
-            nn.Softplus(beta=3.)
-        )
+            nn.Softplus(beta=3.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -74,7 +106,7 @@ class HawkesLSTM(nn.Module):
 
     def forward(self, seq_dt: PackedSequence, seq_types: PackedSequence,
                 h0: Tensor, c0: Tensor, c_target0: Tensor
-                ) -> Tuple[List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]]:
+                ) -> Tuple[List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]]:
         """
         Forward pass of the LSTM network.
 
@@ -101,7 +133,6 @@ class HawkesLSTM(nn.Module):
         h_t = h0  # continuous hidden state
         c_t = c0  # continuous cell state
         c_target = c_target0  # cell state target
-        hiddens = []  # full, updated hidden states
         hiddens_ti = []  # decayed hidden states, directly used in log-likelihood computation
         outputs = []  # output from each LSTM pass
         cells = []  # cell states at event times
@@ -120,7 +151,7 @@ class HawkesLSTM(nn.Module):
 
             # Update the hidden states and LSTM parameters following the equations
             x = self.embed(types_sub_batch)
-            hidden_i, cell_i, c_target, output, decay_i = self.update_states(x, h_t, c_t, c_target)
+            cell_i, c_target, output, decay_i = self.lstm_cell(x, h_t, c_t, c_target)
             c_t: Tensor = (
                     c_target + (cell_i - c_target) *
                     torch.exp(-decay_i * dt[:, None])
@@ -131,50 +162,8 @@ class HawkesLSTM(nn.Module):
             decays.append(decay_i)
             cells.append(cell_i)  # record it
             cell_targets.append(c_target)  # record
-            hiddens.append(hidden_i)  # record it
             hiddens_ti.append(h_t)  # record it
-        return hiddens, hiddens_ti, outputs, cells, cell_targets, decays
-
-    def update_states(self, x: Tensor, h_t: Tensor, c_t: Tensor, c_target: Tensor
-                      ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
-        """
-        Compute the updated LSTM paramters.
-
-        Args:s
-            x: event type embedding
-            h_t:
-            c_t:
-            c_target:
-
-        Returns:
-            h_i: just-updated hidden state
-            h_t: hidden state just before next event
-            cell_i: just-updated cell state
-            c_t: cell state decayed to before next event
-            c_target_i: cell state target before the next event
-            output: LSTM output
-            decay_i: rate of decay for the cell state
-        """
-        v = torch.cat((x, h_t), dim=1)
-        inpt = self.input_g(v)
-        forget = self.forget_g(v)
-        input_target = self.input_target(v)
-        forget_target = self.forget_target(v)
-        output = self.output_g(v)  # compute the LSTM network output
-        # Not-quite-c
-        z_i = self.z_gate(v)
-        # Compute the decay parameter
-        decay = self.decay_layer(v)
-        # Update the cell state to c(t_i+)
-        c_i: Tensor = forget * c_t + inpt * z_i
-
-        h_i: Tensor = output * torch.tanh(c_i)  # hidden state just after event
-
-        # Update the cell state target
-        c_target: Tensor = forget_target * c_target + input_target * z_i
-        # Decay the cell state to its value before the known next event at t+dt
-        # used for the next pass in the loop
-        return h_i, c_i, c_target, output, decay
+        return hiddens_ti, outputs, cells, cell_targets, decays
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
                      cells: List[Tensor], cell_targets: List[Tensor], outputs: List[Tensor],
@@ -259,7 +248,7 @@ class HawkesLSTMGen:
         self.all_times_ = []
         self.record_intensity: bool = record_intensity
 
-    def restart_sequence(self):
+    def _restart_sequence(self):
         self.event_times = []
         self.event_types = []
         self.event_intens = []
@@ -275,7 +264,7 @@ class HawkesLSTMGen:
             tmax: maximum time.
             record_intensity (bool): whether or not to record the intensity (e.g. for plotting)
         """
-        self.restart_sequence()
+        self._restart_sequence()
         model = self.model
         model.eval()
         if record_intensity is None:
@@ -283,18 +272,18 @@ class HawkesLSTMGen:
         with torch.no_grad():
             last_t = 0.0
             s = torch.zeros(1)
-            h0, c0 = model.init_hidden()
+            h0, c0, c_target0 = model.init_hidden()
             h0.normal_(std=0.1)
             c0.normal_(std=0.1)
             h_t = h0
             c_t = c0
-            c_target = c0
+            c_target = c_target0
             # Compute the first hidden states from the noise, at t = 0
             x0 = torch.zeros(1, 1)  # the starter event has an embedding of [ 0. ]
-            h_t, c_t, c_target, output, decay = model.update_states(
+            c_t, c_target, output, decay = model.lstm_cell(
                 x0, h_t, c_t, c_target
             )
-            intens = model.intensity_layer(h_t)
+            intens = model.intensity_layer(output * torch.tanh(c_t))
             # Record everything
             self.event_times.append(last_t)
             self.event_types.append(self.process_dim)
@@ -308,7 +297,7 @@ class HawkesLSTMGen:
                 u1 = torch.rand(1)
                 ds: torch.Tensor = -1. / max_lbda * np.log(u1)
                 u = s.item()
-                du = ds.item() / 10  # sampling interval for intensity record
+                du = min(0.1, ds.item()/10)  # sampling interval for intensity record
                 s: Tensor = s + ds.item()  # Increment s
                 if s > tmax:
                     break
@@ -342,9 +331,8 @@ class HawkesLSTMGen:
                     # accept
                     x = model.embed(res[0])
                     # Bump the hidden states
-                    h_t, c_t, c_target, output, decay = model.update_states(
-                        x, h_t, c_t, c_target
-                    )
+                    c_t, c_target, output, decay = model.lstm_cell(
+                        x, h_t, c_t, c_target)
                     max_lbda = self.update_max_lambda(output, c_t, c_target)
                     last_t = s.item()
                     self.all_times_.append(last_t)  # record the time and intensity a second time

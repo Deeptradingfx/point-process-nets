@@ -74,7 +74,7 @@ def train_lstm(model: HawkesLSTM, optimizer: Optimizer,
             max_pack_batch_size = packed_dt.batch_sizes[0]
             h0, c0, c_target0 = model.init_hidden(max_pack_batch_size, device)
             # Data records
-            hiddens, hiddens_ti, outputs, cells, cell_targets, decays = model(
+            hiddens_ti, outputs, cells, cell_targets, decays = model(
                 packed_dt, packed_types, h0, c0, c_target0)
             batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
             batch_onehot = batch_onehot[:, :, :model.process_dim]
@@ -90,7 +90,6 @@ def train_lstm(model: HawkesLSTM, optimizer: Optimizer,
             epoch_loss.append(loss.item())
             train_hist.append(dict(
                 output=outputs,
-                hidden=hiddens,
                 cell_state=cells,
                 cell_target=cell_targets,
                 decay_cell=decays
