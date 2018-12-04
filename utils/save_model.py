@@ -14,7 +14,8 @@ def save_model(model: torch.nn.Module, chosen_data_file, extra_tag, hidden_size,
         hidden_size, now_timestamp)
     filename_model_save = filename_base + ".pth"
     model_filepath = os.path.join(SAVED_MODELS_PATH, filename_model_save)
-    print("Model save file path: {}".format(model_filepath))
+    print("Saving model to: {}".format(model_filepath))
+    torch.save(model.state_dict(), model_filepath)
 
     file_correspondance = {
         "model_path": model_filepath,
@@ -26,5 +27,3 @@ def save_model(model: torch.nn.Module, chosen_data_file, extra_tag, hidden_size,
         json.dump(file_correspondance, f)
         f.write('\n')
 
-    print("Saving model state dict to {}".format(model_filepath))
-    torch.save(model.state_dict(), model_filepath)

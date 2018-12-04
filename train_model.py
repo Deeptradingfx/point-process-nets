@@ -129,7 +129,9 @@ if __name__ == '__main__':
         date_format = "%Y%m%d-%H%M%S"
         now_timestamp = datetime.datetime.now().strftime(date_format)
         extra_tag = "{}d".format(process_dim)
-        filename_base = "{}-{}-{}".format(MODEL_NAME, extra_tag, now_timestamp)
+        filename_base = "{}-{}_hidden{}-{}".format(
+            MODEL_NAME, extra_tag,
+            hidden_size, now_timestamp)
         from utils.save_model import save_model
         save_model(model, chosen_file, extra_tag,
                    hidden_size, now_timestamp, MODEL_NAME)

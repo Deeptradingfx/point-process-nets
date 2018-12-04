@@ -346,9 +346,8 @@ class HawkesLSTMGen:
             while last_t <= tmax:
                 u1 = torch.rand(1)
                 ds: torch.Tensor = -1. / max_lbda * np.log(u1)
-                if record_intensity:
-                    u = s.item()
-                    du = ds.item() / 10  # sampling interval for intensity record
+                u = s.item()
+                du = ds.item() / 10  # sampling interval for intensity record
                 s: Tensor = s + ds.item()  # Increment s
                 if s > tmax:
                     break
@@ -373,7 +372,7 @@ class HawkesLSTMGen:
                 u2 = np.random.rand()  # random in [0,1]
                 total_intens = intens.sum(dim=1, keepdim=True)
                 ratio = intens/max_lbda
-                if u2 <= intens / max_lbda:
+                if u2 <= ratio:
                     # shape 1 * K
                     # probability distribution for the types
                     weights: Tensor = intens / total_intens  # ratios of types intensities to aggregate
