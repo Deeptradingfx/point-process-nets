@@ -220,9 +220,9 @@ class HawkesLSTM(nn.Module):
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
         log_sum = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=(2, 1))  # shape batch
+
         # COMPUTE INTEGRAL TERM
         # Computed using Monte Carlo method
-
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
@@ -239,8 +239,8 @@ class HawkesLSTM(nn.Module):
             h_t = h_t.transpose(1, 2)
             intens_at_samples.append(self.intensity_layer(h_t).transpose(1, 2))
         intens_at_samples = nn.utils.rnn.pad_sequence(
-            intens_at_samples, padding_value=0.0)  # shape N * batch * K * MC
-        total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape N * batch * MC
+            intens_at_samples, padding_value=0.0)  # shape batch * N * K * MC
+        total_intens_samples: Tensor = intens_at_samples.sum(dim=2)  # shape batch * N * MC
         partial_integrals: Tensor = dt_seq * total_intens_samples.mean(dim=2)
         integral_ = partial_integrals.sum(dim=1)
         res = (- log_sum + integral_).mean()  # mean on batch dim

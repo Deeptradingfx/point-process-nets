@@ -55,6 +55,7 @@ def train_lstm(model: HawkesLSTM, optimizer: Optimizer,
         else:
             tr_loop_range = tqdm.trange(0, train_size, batch_size, ascii=True,
                                         file=sys.stdout, desc="Epoch %d" % epoch)
+        # import pdb; pdb.set_trace()
         # inter-arrival times
         for i in tr_loop_range:
             optimizer.zero_grad()
