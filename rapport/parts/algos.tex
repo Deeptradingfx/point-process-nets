@@ -17,4 +17,14 @@ où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
 
 Le second terme est une intégrale. Elle peut être estimée par une méthode de Monte Carlo, comme le suggèrent \citeauthor{meiEisnerNeuralHawkes}. Plus de détails sur l'estimateur utilisé sont donnés dans l'annexe \autoref{sec:algoAppendix}.
 
+\paragraph{Algorithme de \textit{thinning}} \citeauthor{ogata1981} propose un procédé général pour la simulation de processus ponctuels suivant une intensité stochastique $\lambda$ adaptée à une filtration $\mathds{F}$. Il s'agit de trouver un processus constant par morceaux et $\mathds{F}$-adapté $\{\lambda_t^*\}$ tel que $\sum_{k=1}^{K}\lambda^k_t \leq \lambda_t^*$, et de simuler les temps d'arrivée des événements et leur type par une méthode de rejet. \autocite{ogata1981}
+
+En pratique, pour des processus où l'intensité dépend du passé (comme Hawkes ou les modèles neuronaux), le processus majorant $\lambda^*$ doit être construit en même temps, au fur et à mesure que l'on simule des événements. Pour nos modèles, étant donné un événement en $t_i$, l'intensité du processus évolue de manière déterministe conditionnellement à $\mathcal{F}_{t_i}$ pour $t_i\leq t\leq t_{i+1}$: on peut donc calculer un majorant $\lambda_i^* = \lambda^*_{t_i}$.
+
+Une méthode efficace décrite dans la littérature est de choisir la date du prochain événement selon un processus de poisson déterministe d'intensité ${\{\sum_k\lambda^k_t\}}_{t\geq t_i}$ par rejet: on simule des temps $s_j^*\geq t_i$ distribués selon un processus de Poisson homogène d'intensité $\lambda_i^*$, jusqu'à en accepter un comme étant $t_{i+1}$ avec probabilité $\sum_k\lambda^k_{s_j^*}/\lambda^*_{i} \leq 1$. Le choix de $k_{i+1}$ est effectué en sélectionnant un élément $k$ dans $\llbracket 1,K\rrbracket$ avec la distribution $\PP(k_{i+1} = k) = \lambda^{k}_{t_{i+1}}/\sum_p \lambda^p_{t_{i+1}}$. \cite{meiEisnerNeuralHawkes,ogata1981}
+
+Pour avoir un algorithme de simulation efficace, on chercherait à avoir $\lambda^*$ aussi proche de $\lambda$ que possible, de sorte à ce que la méthode de rejet ait une forte probabilité d'accepter un des premiers temps $s_j^*$ proposés.\footnotemark
+
+\footnotetext{Pour réaliser des courbes d'intensité des processus simulés, on peut choisir de simuler les $s_j^*$ selon un processus de Poisson d'intensité $10\lambda^*$, et enregistrer les points $(s_j^*, \lambda^k_{s_j^*})$ supplémentaires pour faire le graphe.}
+
 \end{document}

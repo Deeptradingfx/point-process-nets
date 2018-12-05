@@ -31,10 +31,10 @@ class HawkesDecayRNN(nn.Module):
         self.rnn_layer = nn.RNNCell(self.process_dim, hidden_size, nonlinearity="tanh")
         self.decay_layer = nn.Sequential(
             nn.Linear(self.process_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=3.0))
+            nn.Softplus(beta=10.0))
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=intens_bias),
-            nn.Softplus(beta=3.0))
+            nn.Softplus(beta=10.0))
 
     def forward(self, dt: PackedSequence, seq_types: PackedSequence,
                 h0: Tensor) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
@@ -215,11 +215,13 @@ class HawkesRNNGen:
         self.event_intens = []
         self.record_intensity: bool = record_intensity
 
-    def get_max_lbda(self, hidden):
-        partial_lbda = self.model.intensity_layer[0](hidden)
-        positive_comps = torch.max(partial_lbda, torch.zeros_like(partial_lbda))
-        softmaxed = self.model.intensity_layer[1](positive_comps)
-        return softmaxed.sum(dim=1, keepdim=True)
+    def update_lbda_bound(self, hidden) -> Tensor:
+        w_alpha = self.model.intensity_layer[0].weight.data
+        increasing_index_ = (w_alpha*hidden < 0)
+        matrix = w_alpha*hidden
+        matrix[increasing_index_] = 0.0
+        pre_lbda = torch.sum(matrix, dim=1)
+        return self.model.intensity_layer[1](pre_lbda)
 
     def restart_sequence(self):
         self.event_times = []
@@ -264,7 +266,7 @@ class HawkesRNNGen:
             self.event_intens.append(intens)
             self.intens_hist.append(intens)
             self._plot_times.append(last_t)
-            max_lbda = mult_ub*self.get_max_lbda(hidden)
+            max_lbda = mult_ub*self.update_lbda_bound(hidden).sum()
             # import pdb; pdb.set_trace()
             while last_t <= tmax:
                 u1: Tensor = torch.rand(1)
@@ -303,7 +305,7 @@ class HawkesRNNGen:
                     intens = model.intensity_layer(hidden).numpy()
                     self.event_intens.append(intens)
                     self.intens_hist.append(intens)
-                max_lbda = mult_ub*self.get_max_lbda(hidden)
+                max_lbda = mult_ub*self.update_lbda_bound(hidden).sum()
 
     def plot_events_and_intensity(self, model_name: str = None, debug=False):
         assert self.record_intensity
@@ -315,7 +317,7 @@ class HawkesRNNGen:
         evt_times = np.array(gen_seq_times)
         evt_types = np.array(gen_seq_types)
         fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
-                               figsize=(10, 4.5))
+                               figsize=(9, 4))
         ax: plt.Axes
         inpt_size = self.process_dim
         ax.set_xlabel('Time $t$ (s)')

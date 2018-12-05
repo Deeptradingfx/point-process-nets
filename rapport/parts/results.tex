@@ -9,12 +9,15 @@ Les modèles ont été entraînés sur des jeux de données synthétiques géné
 
 Un premier indicateur pour voir si le modèle peut retrouver la structure d'un Hawkes est de regarder la distribution du nombre d'événements, au total $N_T$ et par type d'événement $N^k_T, k\in\llbracket 1,K\rrbracket$. Réaliser le graphe de l'intensité $\lambda_t$ pour une séquence d'événements simulée permet aussi de voir si les phénomènes d'auto-excitation sont reflétés.
 
-On a utilisé deux jeux de données synthétiques.
+On a utilisé deux jeux de données synthétiques. \autoref{tab:synthHawkesData}.
 
 \begin{table}[h]
-	\begin{tabular}[]{c|c|c|c|c|c}
-		$K$ & $T$ & $\mu$ & $\alpha$ & $\beta$ & Nombre moyen d'événements \\
-		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$
+	\centering
+	\begin{tabular}[]{cccccc}
+		\toprule
+		$K$ & $T$ & $\mu$ & $\alpha$ & $\beta$ & Nombre moyen d'événements \\ \hline\hline
+		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ \\\hline
+		2 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$
 	\end{tabular}
 	\caption{Paramètres des données synthétiques.}\label{tab:synthHawkesData}
 \end{table}
@@ -28,7 +31,7 @@ Le modèle Decay-RNN réussit à répliquer correctement le comportement d'un pr
 
 \begin{figure}[htp]
 	\includegraphics[width=\linewidth]{../results/seq_length_distrib_HawkesDecayRNN-1d-hidden_32-20181205-143543.pdf}
-	\caption{Distribution du nombre d'événements. $K=1$ type d'événements. Hawkes vs. Decay-RNN avec $D=32$ neurones cachés.}\label{fig:hawkes1DDecayRNNlengthDistrib}
+	\caption{Distribution du nombre d'événements. $K=1$ type d'événements. Hawkes vs. Decay-RNN avec $D=32$ neurones cachés. Entraîné sur le jeu de données \autoref{tab:synthHawkesData}.}\label{fig:hawkes1DDecayRNNlengthDistrib}
 \end{figure}
 
 \begin{figure}[htp]
