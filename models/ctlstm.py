@@ -258,13 +258,14 @@ class HawkesLSTMGen:
         self._plot_times = []
         self.lbda_ub = []
 
-    def generate_sequence(self, tmax: float, record_intensity: bool = False):
+    def generate_sequence(self, tmax: float, record_intensity: bool = False, mult_ub: float = 10):
         """
         Generate an event sequence on the interval [0, tmax].
 
         Args:
             tmax: maximum time.
             record_intensity (bool): whether or not to record the intensity (e.g. for plotting)
+            mult_ub: factor to multiply the
         """
         self._restart_sequence()
         model = self.model
@@ -275,7 +276,7 @@ class HawkesLSTMGen:
             last_t = 0.0
             s = torch.zeros(1)
             h0, c0, _ = model.init_hidden()
-            h0.normal_(std=0.1)
+            h0.fill_(1.)
             c0.normal_(std=0.1)
             h_t = h0
             c_t = c0
@@ -334,7 +335,7 @@ class HawkesLSTMGen:
                     h_t = output * torch.tanh(c_t_last)
                     intens = model.intensity_layer(h_t)
                     max_lbda = self.update_lbda_bound(output, c_t_last, c_target)
-                    max_lbda = 10*max_lbda.sum()
+                    max_lbda = mult_ub*max_lbda.sum()
                     self.lbda_ub.append(max_lbda.numpy())
                     # max_lbda = 3.0
                     last_t = s.item()
