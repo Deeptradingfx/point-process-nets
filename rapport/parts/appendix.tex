@@ -5,7 +5,7 @@
 
 \section{Algorithmes}\label{sec:algoAppendix}
 
-\subsection{Calcul de la log-vraisemblance}
+\subsection{Calcul de la log-vraisemblance}\label{ssec:likelihoodComputation}
 
 La log-vraisemblance donnée par la relation \eqref{eq:explicitLikelihood} comporte deux termes: une somme de logarithmes d'intensités et l'intégrale $\int_0^T\lambda_t\cdot\mathbf{1}\,dt$ de l'intensité totale du processus.
 
@@ -34,6 +34,16 @@ En utilisant la relation de Chasles, on peut construire l'estimateur (non biais�
 où les $\tau_i^{(m)}\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}^{(m)}\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de savoir à quel intervalle appartient $\tau$ est levé. Cependant, on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
 
 \subsection{Simulation de processus}
+
+\paragraph{Algorithme de \textit{thinning}} \citeauthor{ogata1981} propose un procédé général pour la simulation de processus ponctuels suivant une intensité stochastique $\lambda$ adaptée à une filtration $\mathds{F}$. Il s'agit de trouver un processus constant par morceaux et $\mathds{F}$-adapté $\{\lambda_t^*\}$ tel que $\sum_{k=1}^{K}\lambda^k_t \leq \lambda_t^*$, et de simuler les temps d'arrivée des événements et leur type par une méthode de rejet. \autocite{ogata1981}
+
+En pratique, pour des processus où l'intensité dépend du passé (comme Hawkes ou les modèles neuronaux), le processus majorant $\lambda^*$ doit être construit en même temps, au fur et à mesure que l'on simule des événements. Pour nos modèles, étant donné un événement en $t_i$, l'intensité du processus évolue de manière déterministe conditionnellement à $\mathcal{F}_{t_i}$ pour $t_i\leq t\leq t_{i+1}$: on peut donc calculer un majorant $\lambda_i^* = \lambda^*_{t_i}$.
+
+Une méthode efficace décrite dans la littérature est de choisir la date du prochain événement selon un processus de poisson déterministe d'intensité ${\{\sum_k\lambda^k_t\}}_{t\geq t_i}$ par rejet: on simule des temps $s_j^*\geq t_i$ distribués selon un processus de Poisson homogène d'intensité $\lambda_i^*$, jusqu'à en accepter un comme étant $t_{i+1}$ avec probabilité $\sum_k\lambda^k_{s_j^*}/\lambda^*_{i} \leq 1$. Le choix de $k_{i+1}$ est effectué en sélectionnant un élément $k$ dans $\llbracket 1,K\rrbracket$ avec la distribution $\PP(k_{i+1} = k) = \lambda^{k}_{t_{i+1}}/\sum_p \lambda^p_{t_{i+1}}$. \cite{meiEisnerNeuralHawkes,ogata1981}
+
+Pour avoir un algorithme de simulation efficace, on chercherait à avoir $\lambda^*$ aussi proche de $\lambda$ que possible, de sorte à ce que la méthode de rejet ait une forte probabilité d'accepter un des premiers temps $s_j^*$ proposés.\footnotemark
+
+\footnotetext{Pour réaliser des courbes d'intensité des processus simulés, on peut choisir de simuler les $s_j^*$ selon un processus de Poisson d'intensité $10\lambda^*$, et enregistrer les points $(s_j^*, \lambda^k_{s_j^*})$ supplémentaires pour faire le graphe.}
 
 \paragraph{Majorant $\lambda^*$ pour le RNN} L'intensité s'écrit sous la forme \eqref{eq:decayRNNintensity} $\lambda_t = f(W_lh(t))$. La fonction d'activation $f$ est toujours strictement croissante, donc il suffit en fait de majorer les composantes de $W_lh(t)$, qui s'écrivent sous la forme
 \[

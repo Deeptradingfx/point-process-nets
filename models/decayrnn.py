@@ -202,7 +202,7 @@ class HawkesRNNGen:
         model: model instance with which to generate event sequences.
     """
 
-    def __init__(self, model: HawkesDecayRNN, record_intensity: bool = True):
+    def __init__(self, model: HawkesDecayRNN, record_intensity: bool = False):
         self.model = model
         self.process_dim = model.input_size - 1  # process dimension
         print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
@@ -248,8 +248,6 @@ class HawkesRNNGen:
         self.restart_sequence()
         if record_intensity is None:
             record_intensity = self.record_intensity
-        else:
-            self.record_intensity = record_intensity
         if not record_intensity:
             mult_ub = 1.
         model = self.model
@@ -258,7 +256,11 @@ class HawkesRNNGen:
             last_t = 0.
             hidden = model.init_hidden()
             hidden.normal_(std=0.1)  # set the hidden state to a N(0, 0.01) variable.
-            decay = torch.zeros_like(hidden)
+            k0 = torch.LongTensor([self.process_dim])
+            x0 = model.embed(k0)
+            concat = torch.cat((x0, hidden), dim=1)
+            decay = model.decay_layer(concat)
+            hidden = model.rnn_layer(x0, hidden)
             intens = model.intensity_layer(hidden).numpy()
             self.hidden_hist.append(hidden.numpy())
             self.event_times.append(last_t)  # record sequence start event
@@ -279,16 +281,17 @@ class HawkesRNNGen:
                 self._plot_times.append(s.item())
                 # adaptive sampling: always update the hidden state
                 hidden = hidden * torch.exp(-decay * ds)
+                max_lbda = mult_ub * self.update_lbda_bound(hidden).sum()
                 intens_candidate = model.intensity_layer(hidden)
                 self.intens_hist.append(intens_candidate.numpy())
-                total_intens: Tensor = torch.sum(intens_candidate, dim=1, keepdim=True)
+                total_intens: Tensor = intens_candidate.sum(dim=1)
                 # rejection sampling
                 u2: Tensor = torch.rand(1)
                 ratio = total_intens / max_lbda
                 if u2 <= ratio:
                     # shape 1 * (K+1)
                     # probability distribution for the types
-                    weights: Tensor = intens_candidate / total_intens  # ratios of types intensities to aggregate
+                    weights: Tensor = intens_candidate / total_intens
                     res = torch.multinomial(weights, 1)
                     k = res.item()
                     # accept
@@ -305,10 +308,8 @@ class HawkesRNNGen:
                     intens = model.intensity_layer(hidden).numpy()
                     self.event_intens.append(intens)
                     self.intens_hist.append(intens)
-                max_lbda = mult_ub*self.update_lbda_bound(hidden).sum()
 
     def plot_events_and_intensity(self, model_name: str = None, debug=False):
-        assert self.record_intensity
         import matplotlib.pyplot as plt
         gen_seq_times = self.event_times
         gen_seq_types = self.event_types
