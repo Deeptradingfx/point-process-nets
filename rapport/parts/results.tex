@@ -25,7 +25,7 @@ Le modèle Decay-RNN réussit à répliquer correctement le comportement d'un pr
 
 \begin{figure}[htp]
 	\includegraphics[width=\linewidth]{../results/intensity_Decay-RNN_1d_hidden8_20181202-140621.pdf}
-	\caption{Processus d'intensité et temps d'arrivée. Trajectoire générée par le réseau Decay-RNN avec $K=1$, $D=6$.}\label{fig:hawkes1DRNNintensityPlot}
+	\caption{Processus d'intensité et temps d'arrivée. Trajectoire générée par le réseau Decay-RNN avec $K=1$, $D=6$, entraîné sur des données issues d'un processus de Hawkes.}\label{fig:hawkes1DRNNintensityPlot}
 \end{figure}
 
 Cependant, cette propriété semble perdue lorsque l'on augmente la dimension du processus. Les \cref{fig:hawkes2DDecayRNNlengthDistrib,fig:hawkes2DDecayRNNintensityPlot} montrent que le calibrage du réseau sur des données tirées d'un Hawkes bidimensionnel donne un mauvais résultat: les séquences générées sont très souvent d'un seul type d'événement. Parfois, comme dans le cas \cref{fig:hawkes2DDecayRNNintensityPlotRareBehaviour}, le type d'événement généré peut changer.

@@ -85,6 +85,7 @@ La fonction d'activation $f$ est la fonction <<~Softmax~>>
 \]
 une approximation régulière et strictement positive de la fonction ReLU $x\mapsto \max(x,0)$.
 
+La valeur de $h(t)$ peut signaler un comportement inhibiteur pour certaines composantes (quand $h_k$ devient proche de $-1$) et excitateur pour d'autres (valeur proche de $1$), qui est d'autant plus fort que le dernier événement est récent: $h(t)$ étant ramené vers $0$ au cours du temps, l'effet inhibiteur ou excitateur s'estompe.
 
 
 \subsubsection{Réseau LSTM avec amortissement}
@@ -115,8 +116,12 @@ Les paramètres sont mis à jour pour l'intervalle $(t_i, t_{i+1}]$ via les équ
 \end{align}
 \end{subequations}
 
+Ce réseau offre une dynamique plus riche que le Decay-RNN: l'état-cellule converge au cours du temps vers une valeur de long terme $\bar{c}_i$. Un effet excitateur dominant pour l'une des composantes $k$ du processus peut s'affaiblir sans disparaître, ou même laisser la place à un effet inhibiteur. La \autoref{fig:exampleLSTMIntensityTraj} illustre un cas unidimensionnel où chaque événement a un effet auto-inhibiteur immédiat, qui est corrigé par une excitation externe qui s'affaiblit.
 
-
+\begin{figure}
+	\includegraphics[width=\linewidth]{../notebooks/example_iiiiiilstmplot.pdf}
+	\caption{Trajectoire générée par un modèle LSTM non-entraîné, avec des poids générés aléatoirement.}\label{fig:exampleLSTMIntensityTraj}
+\end{figure}
 
 
 
