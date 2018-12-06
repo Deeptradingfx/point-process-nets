@@ -26,7 +26,7 @@ class HawkesLSTMCell(nn.Module):
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
             nn.Linear(input_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=10.))
+            nn.Softplus(beta=3.))
 
     def forward(self, x, h_t, c_t, c_target) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """
@@ -85,7 +85,7 @@ class HawkesLSTM(nn.Module):
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
-            nn.Softplus(beta=10.))
+            nn.Softplus(beta=3.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -265,8 +265,8 @@ class HawkesLSTMGen(SeqGenerator):
             h0, c0, _ = model.init_hidden()
             h0.normal_(std=0.1)
             c0.normal_(std=0.1)
-            h_t = h0
-            c_t = c0
+            h_t = h0 + 1
+            c_t = c0 + 1
             c_target = c0.clone()
             # Compute the first hidden states from the noise, at t = 0
             k0 = torch.LongTensor([self.process_dim])
