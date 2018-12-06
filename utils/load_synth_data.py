@@ -38,8 +38,8 @@ def one_hot_embedding(labels: Tensor, num_classes: int) -> torch.Tensor:
     """Embedding labels to one-hot form. Produces an easy-to-use mask to select components of the intensity.
 
     Args:
-        labels: (LongTensor) class labels, sized [N,].
-        num_classes: (int) number of classes.
+        labels: class labels, sized [N,].
+        num_classes: number of classes.
 
     Returns:
         (tensor) encoded labels, sized [N, #classes].

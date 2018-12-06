@@ -189,8 +189,6 @@ class HawkesLSTM(nn.Module):
         Shape:
             one-element tensor
         """
-        import pdb
-        pdb.set_trace()
         n_batch = seq_times.size(0)
         n_times = len(hiddens_ti)
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]
