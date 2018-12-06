@@ -189,6 +189,8 @@ class HawkesLSTM(nn.Module):
         Shape:
             one-element tensor
         """
+        import pdb
+        pdb.set_trace()
         n_batch = seq_times.size(0)
         n_times = len(hiddens_ti)
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]
@@ -211,7 +213,7 @@ class HawkesLSTM(nn.Module):
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
-        n_mc_samples = 1
+        n_mc_samples = 10
         # shape N * batch * M_mc
         taus = torch.rand(n_batch, n_times, 1, n_mc_samples).to(device)
         taus: Tensor = dt_seq[:, :, None, None] * taus  # inter-event times samples)
