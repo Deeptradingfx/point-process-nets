@@ -361,8 +361,7 @@ class HawkesRNNGen:
 
 
 def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
-                 seq_types: Tensor, seq_length: Tensor,
-                 verbose: bool = False) -> Tuple[Tensor, Tensor, Tensor]:
+                 seq_types: Tensor, seq_length: Tensor):
     """
     Reads an event sequence and predicts the next event time and type.
 
@@ -371,7 +370,6 @@ def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
         seq_times: event sequence arrival times (with 0)
         seq_types: event types (one-hot encoded)
         seq_length: event sequence length
-        verbose: whether or not to print stuff
 
     Returns:
 
@@ -384,7 +382,6 @@ def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
     seq_types = seq_types[:seq_length + 1]
     model.eval()
     hidden_t, decay = model.init_hidden()
-    hidden = hidden_t.clone()
     dt_seq = seq_times[1:] - seq_times[:-1]
     assert seq_length == dt_seq.shape[0]
     # Read event sequence
@@ -394,20 +391,6 @@ def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
     last_ev_time = seq_times[-2]  # last read event time
     type_real = seq_types[-1]  # real next event's type
     ds = dt_seq[-1]  # time until next event
-    with torch.no_grad():
-        intensities = model.intensity_layer(hidden)
-        # probability distribution of all possible evt types at tN
-        prob_distrib = intensities / intensities.sum()
-        k_type_predict = torch.multinomial(prob_distrib, 1)[0]  # event type prediction
-        type_predict = one_hot_embedding(k_type_predict, model.input_size)
-    # import pdb; pdb.set_trace()
-    k_type_real = torch.argmax(type_real)
-    if verbose:
-        print("Sequence length: {}".format(seq_length))
-        print("Last read event time: {} of type {}"
-              .format(last_ev_time, seq_types[-2].argmax()))
-        print("Next event time: {} in {} secs".format(seq_times[-1], ds))
-        print("Actual type: {}".format(k_type_real))
-        print("Predicted type: {}".format(k_type_predict.item()))
 
-    return type_real, type_predict, prob_distrib
+
+    return

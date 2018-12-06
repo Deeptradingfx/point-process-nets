@@ -9,7 +9,7 @@ Une fonctionnelle de perte possible, utilisée dans \autocite{meiEisnerNeuralHaw
 \begin{equation}\label{eq:explicitLikelihood}
 \mathcal{L}\left(\{(t_i,k_i)\}_i\right)
 =
-\sum_{i:\, t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \underbrace{\lambda_t\cdot\mathbf{1}}_{\sum_{k=1}^K\lambda^j_t}\,dt
+\sum_{i:\, t_i < T} \log\lambda^{k_i}_{t_i} - \int_0^T \bar\lambda_t\,dt
 \end{equation}
 où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
 
@@ -17,8 +17,16 @@ où on a noté $\mathbf{1} = {(1,\ldots,1)}^\intercal\in\RR^K$.
 
 Le second terme est une intégrale. Elle peut être estimée par une méthode de Monte Carlo, comme le suggèrent \citeauthor{meiEisnerNeuralHawkes}. Plus de détails sur l'estimateur utilisé sont donnés dans l'annexe \autoref{sec:algoAppendix}.
 
-
-
+Pour la prédiction d'événement, on évalue le réseau sur un début de séquence $\{(t_j,k_j)\}_{j < i}$, permettant d'obtenir l'historique du processus jusqu'à $\mathcal{F}_{t_{i-1}}$. Conditionnellement à $\mathcal{F}_{t_{i-1}}$, la loi du temps d'arrivée du prochain événement a pour densité
+\[
+	p_i(t) = \bar\lambda_t\exp\left(-\int_{t_{i-1}}^t\bar\lambda_u\,du\right)
+\]
+et le meilleur estimateur au sens $L_2$ de $t_i$ avec l'information $\mathcal{F}_{t_{i-1}}$ est
+\[
+	\hat{t}_i = \EE\left[ t_i \mid \mathcal{F}_{t_{i-1}} \right]
+	=
+	\int_{t_{i-1}}^\infty t p_i(t)\,dt.
+\]
 
 
 
