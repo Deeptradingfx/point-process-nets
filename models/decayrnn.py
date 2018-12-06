@@ -203,7 +203,7 @@ class HawkesRNNGen(SeqGenerator):
     """
 
     def __init__(self, model: HawkesDecayRNN, record_intensity: bool = False):
-        super(SeqGenerator, self).__init__(model, record_intensity)
+        super(HawkesRNNGen, self).__init__(model, record_intensity)
 
     def update_lbda_bound(self, hidden) -> Tensor:
         w_alpha = self.model.intensity_layer[0].weight.data

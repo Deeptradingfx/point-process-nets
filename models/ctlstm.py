@@ -259,14 +259,16 @@ class HawkesLSTMGen(SeqGenerator):
         model.eval()
         if record_intensity is None:
             record_intensity = self.record_intensity
+        if not record_intensity:
+            mult_ub = 1.
         with torch.no_grad():
             last_t = 0.0
             s = torch.zeros(1)
             h0, c0, _ = model.init_hidden()
             h0.normal_(std=0.1)
             c0.normal_(std=0.1)
-            h_t = h0 + 1
-            c_t = c0 + 1
+            h_t = h0
+            c_t = c0
             c_target = c0.clone()
             # Compute the first hidden states from the noise, at t = 0
             k0 = torch.LongTensor([self.process_dim])
