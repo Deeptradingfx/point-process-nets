@@ -9,6 +9,7 @@ from torch import Tensor
 from torch import nn
 from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
+from models.base import SeqGenerator
 
 
 class HawkesLSTMCell(nn.Module):
@@ -25,7 +26,7 @@ class HawkesLSTMCell(nn.Module):
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
             nn.Linear(input_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=3.))
+            nn.Softplus(beta=10.))
 
     def forward(self, x, h_t, c_t, c_target) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """
@@ -84,7 +85,7 @@ class HawkesLSTM(nn.Module):
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
-            nn.Softplus(beta=3.))
+            nn.Softplus(beta=10.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -231,31 +232,17 @@ class HawkesLSTM(nn.Module):
         return res
 
 
-class HawkesLSTMGen:
+class HawkesLSTMGen(SeqGenerator):
     """
     Sequence generator for the CT-LSTM model.
     """
 
     def __init__(self, model: HawkesLSTM, record_intensity: bool = True):
-        self.model = model
-        self.process_dim = model.input_size - 1  # process dimension
-        print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
-        self.event_times = []
-        self.event_types = []
-        self.event_intens = []
-        self.decay_hist: List[Tensor] = []
-        self.intens_hist: List[Tensor] = []
-        self._plot_times = []  # used for plotting
+        super(HawkesLSTMGen, self).__init__(model, record_intensity)
         self.lbda_ub = []
-        self.record_intensity: bool = record_intensity
 
     def _restart_sequence(self):
-        self.event_times = []
-        self.event_types = []
-        self.event_intens = []
-        self.decay_hist = []
-        self.intens_hist = []
-        self._plot_times = []
+        super(HawkesLSTMGen, self)._restart_sequence()
         self.lbda_ub = []
 
     def generate_sequence(self, tmax: float, record_intensity: bool = False, mult_ub: float = 10):
@@ -276,7 +263,7 @@ class HawkesLSTMGen:
             last_t = 0.0
             s = torch.zeros(1)
             h0, c0, _ = model.init_hidden()
-            h0.fill_(1.)
+            h0.normal_(std=0.1)
             c0.normal_(std=0.1)
             h_t = h0
             c_t = c0
@@ -297,7 +284,7 @@ class HawkesLSTMGen:
             self.decay_hist.append(decay.numpy())
             self._plot_times.append(last_t)
             self.intens_hist.append(intens.numpy())
-            max_lbda = self.update_lbda_bound(output, c_t, c_target).sum()
+            max_lbda = mult_ub*self.update_lbda_bound(output, c_t, c_target).sum()
             self.lbda_ub.append(max_lbda.numpy())
             # max_lbda = 3.0
 
@@ -371,55 +358,3 @@ class HawkesLSTMGen:
         # compute the intensity using the Softplus inside the intensity layer of the model
         res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
-
-    def plot_events_and_intensity(self, model_name: str = None, debug=False):
-        assert self.record_intensity
-        import matplotlib.pyplot as plt
-        gen_seq_times = self.event_times
-        gen_seq_types = self.event_types
-        sequence_length = len(gen_seq_times)
-        print("no. of events: {}".format(sequence_length))
-        evt_times = np.array(gen_seq_times)
-        evt_types = np.array(gen_seq_types)
-        fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
-                               figsize=(10, 4.5))
-        ax: plt.Axes
-        inpt_size = self.process_dim
-        ax.set_xlabel('Time $t$ (s)')
-        intens_hist = np.stack(self.intens_hist)[:, 0]
-        labels = ["type {}".format(i) for i in range(self.process_dim)]
-        for y, lab in zip(intens_hist.T, labels):
-            ax.plot(self._plot_times, y, linewidth=.7, label=lab)
-        ax.set_ylabel(r"Intensities $\lambda^i_t$")
-        title = "Event arrival times and intensities for generated sequence"
-        if model_name is None:
-            model_name = self.model.__class__.__name__
-        title += " ({})".format(model_name)
-        ax.set_title(title)
-        ylims = ax.get_ylim()
-        ts_y = np.stack(self.event_intens)[:, 0]
-        for k in range(inpt_size):
-            mask = evt_types == k
-            print(k, end=': ')
-            if k == self.process_dim:
-                print("starter type")
-                # label = "start event".format(k)
-                y = self.intens_hist[0].sum(axis=1)
-            else:
-                print("type {}".format(k))
-                y = ts_y[mask, k]
-                # label = "type {} event".format(k)
-            ax.scatter(evt_times[mask], y, s=9, zorder=5,
-                       alpha=0.8)
-            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='-', alpha=0.8)
-
-        # Useful for debugging the sampling for the intensity curve.
-        if debug:
-            for s in self._plot_times:
-                ax.vlines(s, ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.6, colors='red')
-
-        ax.set_ylim(*ylims)
-        ax.legend()
-        fig.tight_layout()
-        return fig
-

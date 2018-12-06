@@ -1,10 +1,10 @@
-import numpy as np
 import torch
 from torch import nn
 from torch import Tensor
 from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
-from utils.load_synth_data import one_hot_embedding
+
+from models.base import SeqGenerator
 
 
 class HawkesDecayRNN(nn.Module):
@@ -194,7 +194,7 @@ class HawkesDecayRNN(nn.Module):
         return res
 
 
-class HawkesRNNGen:
+class HawkesRNNGen(SeqGenerator):
     """
     Event sequence generator for the Hawkes Decay-RNN model.
 
@@ -203,17 +203,7 @@ class HawkesRNNGen:
     """
 
     def __init__(self, model: HawkesDecayRNN, record_intensity: bool = False):
-        self.model = model
-        self.process_dim = model.input_size - 1  # process dimension
-        print("Process model dim:\t{}\tHidden units:\t{}".format(self.process_dim, model.hidden_size))
-        self.event_times = []
-        self.event_types = []
-        self.decay_hist = []
-        self.hidden_hist = []
-        self.intens_hist = []
-        self._plot_times = []
-        self.event_intens = []
-        self.record_intensity: bool = record_intensity
+        super(SeqGenerator, self).__init__(model, record_intensity)
 
     def update_lbda_bound(self, hidden) -> Tensor:
         w_alpha = self.model.intensity_layer[0].weight.data
@@ -222,15 +212,6 @@ class HawkesRNNGen:
         matrix[increasing_index_] = 0.0
         pre_lbda = torch.sum(matrix, dim=1)
         return self.model.intensity_layer[1](pre_lbda)
-
-    def restart_sequence(self):
-        self.event_times = []
-        self.event_types = []
-        self.event_intens = []
-        self.decay_hist = []
-        self.hidden_hist = []
-        self.intens_hist = []
-        self._plot_times = []
 
     def generate_sequence(self, tmax: float, record_intensity: bool = None,
                           mult_ub: float = 20.0):
@@ -245,7 +226,7 @@ class HawkesRNNGen:
         Returns:
             Sequence of event times with corresponding event intensities.
         """
-        self.restart_sequence()
+        self._restart_sequence()
         if record_intensity is None:
             record_intensity = self.record_intensity
         if not record_intensity:
@@ -308,56 +289,6 @@ class HawkesRNNGen:
                     intens = model.intensity_layer(hidden).numpy()
                     self.event_intens.append(intens)
                     self.intens_hist.append(intens)
-
-    def plot_events_and_intensity(self, model_name: str = None, debug=False):
-        import matplotlib.pyplot as plt
-        gen_seq_times = self.event_times
-        gen_seq_types = self.event_types
-        sequence_length = len(gen_seq_times)
-        print("no. of events: {}".format(sequence_length))
-        evt_times = np.array(gen_seq_times)
-        evt_types = np.array(gen_seq_types)
-        fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
-                               figsize=(9, 4))
-        ax: plt.Axes
-        inpt_size = self.process_dim
-        ax.set_xlabel('Time $t$ (s)')
-        intens_hist = np.stack(self.intens_hist)[:, 0]
-        labels = ["type {}".format(i) for i in range(self.process_dim)]
-        for y, lab in zip(intens_hist.T, labels):
-            ax.plot(self._plot_times, y, linewidth=.7, label=lab)
-        ax.set_ylabel(r"Intensities $\lambda^i_t$")
-        title = "Event arrival times and intensities for generated sequence"
-        if model_name is None:
-            model_name = self.model.__class__.__name__
-        title += " ({})".format(model_name)
-        ax.set_title(title)
-        ylims = ax.get_ylim()
-        ts_y = np.stack(self.event_intens)[:, 0]
-        for k in range(inpt_size):
-            mask = evt_types == k
-            print(k, end=': ')
-            if k == self.process_dim:
-                print("starter type")
-                # label = "start event".format(k)
-                y = self.intens_hist[0].sum(axis=1)
-            else:
-                print("type {}".format(k))
-                y = ts_y[mask, k]
-                # label = "type {} event".format(k)
-            ax.scatter(evt_times[mask], y, s=9, zorder=5,
-                       alpha=0.8)
-            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='-', alpha=0.8)
-
-        # Useful for debugging the sampling for the intensity curve.
-        if debug:
-            for s in self._plot_times:
-                ax.vlines(s, ylims[0], ylims[1], linewidth=0.3, linestyles='--', alpha=0.6, colors='red')
-
-        ax.set_ylim(*ylims)
-        ax.legend()
-        fig.tight_layout()
-        return fig
 
 
 def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
