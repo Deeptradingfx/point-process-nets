@@ -111,11 +111,11 @@ if __name__ == '__main__':
     EPOCHS = args.epochs
 
     if MODEL_TOKEN == 'rnn':
-        loss_hist, train_hist = train_decayrnn(
+        loss_hist = train_decayrnn(
             model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
             tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
     elif MODEL_TOKEN == 'lstm':
-        loss_hist, train_hist = train_lstm(
+        loss_hist = train_lstm(
             model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
             tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
     else:
