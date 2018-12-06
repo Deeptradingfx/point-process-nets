@@ -26,7 +26,7 @@ class HawkesLSTMCell(nn.Module):
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
             nn.Linear(input_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=3.))
+            nn.Softplus(beta=1.))
 
     def forward(self, x, h_t, c_t, c_target) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """
@@ -62,8 +62,6 @@ class HawkesLSTMCell(nn.Module):
         # h_i = output * torch.tanh(c_i)  # hidden state just after event
         # Update the cell state target
         c_target = forget_target * c_target + input_target * z_i
-        # Decay the cell state to its value before the known next event at t+dt
-        # used for the next pass in the loop
         return c_i, c_target, output, decay
 
 
@@ -84,8 +82,8 @@ class HawkesLSTM(nn.Module):
         self.lstm_cell = HawkesLSTMCell(self.process_dim, hidden_size)
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
-            nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
-            nn.Softplus(beta=3.))
+            nn.Linear(hidden_size, self.process_dim, bias=True),  # no bias in the model
+            nn.Softplus(beta=1.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -164,6 +162,7 @@ class HawkesLSTM(nn.Module):
             cells.append(cell_i)  # record it
             cell_targets.append(c_target)  # record
             hiddens_ti.append(h_t)  # record it
+            beg_index += batch_size  # move the starting index for the data in the PackedSequence
         return hiddens_ti, outputs, cells, cell_targets, decays
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
@@ -266,6 +265,7 @@ class HawkesLSTMGen(SeqGenerator):
             s = torch.zeros(1)
             h0, c0, _ = model.init_hidden()
             h0.normal_(std=0.1)
+            h0 += 1.
             c0.normal_(std=0.1)
             h_t = h0
             c_t = c0

@@ -291,37 +291,51 @@ class HawkesRNNGen(SeqGenerator):
                     self.intens_hist.append(intens)
 
 
-def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
-                 seq_types: Tensor, seq_length: Tensor):
-    """
-    Reads an event sequence and predicts the next event time and type.
-
-    Args:
-        model: Decay-RNN model instance
-        seq_times: event sequence arrival times (with 0)
-        seq_types: event types (one-hot encoded)
-        seq_length: event sequence length
-
-    Returns:
-
-    """
-    ndim = seq_times.ndimension()
-    if ndim < 2:
-        seq_times = seq_times.unsqueeze(1)
-        seq_types = seq_types.unsqueeze(1)
-    seq_times = seq_times[:seq_length + 1]
-    seq_types = seq_types[:seq_length + 1]
-    model.eval()
-    hidden_t, decay = model.init_hidden()
-    dt_seq = seq_times[1:] - seq_times[:-1]
-    assert seq_length == dt_seq.shape[0]
-    # Read event sequence
-    for i in range(seq_length):
-        hidden, decay, hidden_t = model(dt_seq[i], seq_types[i], hidden_t)
-    # We read the types of all events up until this one
-    last_ev_time = seq_times[-2]  # last read event time
-    type_real = seq_types[-1]  # real next event's type
-    ds = dt_seq[-1]  # time until next event
-
-
-    return
+def read_predict(model: HawkesDecayRNN, sequence, types, lengths, plot: bool = False):
+    global decay
+    length = lengths.item()
+    print("Sequence length:", length)
+    dt_seq = sequence[1:] - sequence[:-1]
+    dt_seq = dt_seq[:length]
+    hidden = model.init_hidden()
+    with torch.no_grad():
+        for i in range(length):
+            x = model.embed(types[i]).unsqueeze(-1)
+            concat = torch.cat((x, hidden), dim=1)
+            decay = model.decay_layer(concat)
+            hidden = model.rnn_layer(x, hidden)
+            if i < length-1:
+                hidden = hidden*torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
+        print('Done reading event sequence prefix at index {}'.format(i))
+        print('last read event time:', sequence[i].item())
+        print('real next event time:', sequence[i + 1].item(),
+              'in: {:.3f}'.format(dt_seq[i].item()))
+        last_t = sequence[i].item()
+        real_dt = dt_seq[i]
+        n_samples = 40000
+        hmax = 40
+        timestep = hmax/n_samples
+        dt_vals = torch.linspace(0, hmax, n_samples+1)
+        h_t_vals = hidden*torch.exp(-decay*dt_vals[:, None])
+        intens_t_vals = model.intensity_layer(h_t_vals).sum(dim=1)
+        integral_ = torch.cumsum(timestep*intens_t_vals, dim=0)
+        density = intens_t_vals * torch.exp(-integral_)
+        if plot:
+            import matplotlib.pyplot as plt
+            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(9,4), dpi=100)
+            ax0.plot(dt_vals.numpy(), density.numpy(),
+                     linestyle='--', linewidth=.7)
+            ax0.set_title("probability density $p_i(u)$\nof the next increment")
+            # definite integral of the density
+            cumul_dens = (timestep*density).cumsum(dim=0)
+            ax1.plot(dt_vals.numpy(), cumul_dens.numpy(),
+                     linestyle='--', linewidth=.7)
+            ax1.set_title('Cdf of the increment')
+        t_pit = dt_vals * density
+        # trapeze method
+        expectation = (timestep * 0.5*(t_pit[1:]+t_pit[:-1])).sum()
+        print("estimate: {:.3f}".format(expectation))
+        error = torch.norm(real_dt - expectation)
+        print("error: {:.3f}".format(error))
+        relative_error = error/real_dt
+        print("relative error: {:.3f}".format(relative_error))
