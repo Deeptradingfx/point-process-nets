@@ -33,7 +33,7 @@ En utilisant la relation de Chasles, on peut construire l'estimateur (non biais�
 \end{equation}
 où les $\tau_i^{(m)}\sim\mathcal{U}([t_{i-1}, t_i])$, $\tau_{I+1}^{(m)}\sim\mathcal{U}([t_I, T])$ sont indépendants. Le problème de savoir à quel intervalle appartient $\tau$ est levé. Cependant, on n'a aucune garantie que $\hat{\Lambda}^C$ soit un meilleur ou pire estimateur que $\bar{\Lambda}$ en terme de variance.
 
-\subsection{Simulation de processus}
+\subsection{Simulation de processus}\label{ssec:thinning}
 
 \paragraph{Algorithme de \textit{thinning}} \citeauthor{ogata1981} propose un procédé général pour la simulation de processus ponctuels suivant une intensité stochastique $\lambda$ adaptée à une filtration $\mathds{F}$. Il s'agit de trouver un processus constant par morceaux et $\mathds{F}$-adapté $\{\lambda_t^*\}$ tel que $\sum_{k=1}^{K}\lambda^k_t \leq \lambda_t^*$, et de simuler les temps d'arrivée des événements et leur type par une méthode de rejet. \autocite{ogata1981}
 
