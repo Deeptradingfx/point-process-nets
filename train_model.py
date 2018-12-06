@@ -16,8 +16,8 @@ from train_functions import train_decayrnn, train_lstm
 
 SEED = 52
 torch.manual_seed(SEED)
-DEFAULT_BATCH_SIZE = 32
-DEFAULT_HIDDEN_SIZE = 6
+DEFAULT_BATCH_SIZE = 24
+DEFAULT_HIDDEN_SIZE = 12
 DEFAULT_LEARN_RATE = 0.02
 
 if __name__ == '__main__':
@@ -111,11 +111,11 @@ if __name__ == '__main__':
     EPOCHS = args.epochs
 
     if MODEL_TOKEN == 'rnn':
-        loss_hist, train_hist = train_decayrnn(
+        loss_hist = train_decayrnn(
             model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
             tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
     elif MODEL_TOKEN == 'lstm':
-        loss_hist, train_hist = train_lstm(
+        loss_hist = train_lstm(
             model, optimizer, train_times_tensor, train_seq_types, train_seq_lengths,
             tmax, BATCH_SIZE, EPOCHS, use_cuda=USE_CUDA, use_jupyter=False)
     else:

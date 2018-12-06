@@ -3,13 +3,14 @@
 
 \begin{document}
 
-Un processus ponctuel est associé à un processus $N_t$ qui compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Sa mesure d'intensité $\lambda$ par rapport à une filtration $\mathds F = (\mathcal{F}_t)$ vérifie
+Un processus ponctuel $N = (N_t)$ compte le nombre d'événements sur $[0,t]$. Le nombre d'événements entre deux instants $s\leq t$ est donc $N_t - N_s$. Si on se donne une filtration $\mathds{F} = (F_t)$ adaptée au processus $N$, il existe un processus prévisible $\lambda$ associé à $N$ appelé \textit{intensité}, vérifiant
 \[
 	\EE [N_{t+h} - N_t \mid \mathcal{F}_t] \underset{h\to 0}{=} \lambda_th + o(h).
 \]
 ou succinctement $\EE[dN_t] = \lambda_t\,dt$.
-
 Ainsi, plus l'intensité $\lambda_t$ est élevée, plus la probabilité d'avoir un événement dans l'immédiat est élevée.
+
+Un processus \textit{multivarié} $N$ compte des événements de plusieurs types $k$. Ses composantes $N^k$ ont chacune leur propre intensité $\lambda^k$. Dans la suite, on notera $\bar{\lambda}_t = \sum_{k=1}^{K}\lambda^k_t$ l'intensité totale du processus, pour tous les types d'événements.
 
 On cherche ici à modéliser des \textit{séquences} d'événements ${\{(t_i,k_i)\}}_i$ arrivant à des instants distincts $0<t_1 < \cdots$ et de \textit{type} $k_i$.
 
@@ -21,6 +22,7 @@ Si on se donne un modèle $P = \PP(\,\cdot\,\mid \Theta)$ de la loi de nos séqu
 	+ \log P(t_{I+1}>T\mid \mathcal{F}_{t_{I}})
 \end{equation}
 où $\mathcal{F}_t = \{ (t_i,k_i)\,:\, t_i \leq t \}$.
+
 
 
 \subsection{Modèle de base: le processus de Hawkes}
@@ -44,7 +46,7 @@ Les réseaux de neurones récurrents (\textit{recurrent neural networks}, RNN), 
 
 Ces architectures récurrentes se sont montrées particulièrement efficaces dans le domaines de la vision par ordinateur ou de la compréhension de texte, le \textit{natural language processing} (NLP). \cite{unreasonableEffectivenessRNN}
 
-\begin{figure}
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[height=0.2\textheight]{diagrams/rnn.pdf}
 	\caption{Les architectures RNN impliquent l'usage de boucles: la sortie $h_t$ est utilisée calculer $h_{t+1}$.}\label{fig:simpleRNN}
@@ -67,7 +69,7 @@ On postule que l'intensité est non-linéaire de la forme
 où $h(t)\in\RR^D$ est un état caché en temps continu. Il s'agit d'une variante des architectures récurrentes standard de \citeauthor{elman1990srnn} introduisant un amortissement exponentiel de l'état caché $h(t)$ pour prendre en compte le temps. C'est inspiré de ce que font \citeauthor{meiEisnerNeuralHawkes} \cite{meiEisnerNeuralHawkes}.
 
 Le réseau prend en entrée l'intervalle de temps $\Delta t_i$ entre deux événements et le type $k_i\in\llbracket 1,K\rrbracket$, transformé en vecteur $x_i\in\RR^K$ en utilisant un \textit{embedding}.
-Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte par amortissement
+Le temps écoulé depuis un événement en $t_{i-1}$ est pris en compte en amortissant l'état caché
 \begin{equation}
 h(t) = h_{i}e^{-\delta_i(t-t_{i-1})},\quad t\in(t_{i-1},t_i]
 \end{equation}
@@ -79,13 +81,25 @@ où les paramètres $h_i$ et $\delta_i$ sont mis à jour pour l'intervalle $(t_i
 \end{align}
 \end{subequations}
 
-La fonction d'activation $f$ est la fonction <<~Softmax~>>
+La fonction d'activation $f$ utilisée est la <<~Softplus~>>
 \[
 	x\mapsto \frac{1}{\beta}\log(1+e^{\beta x}),\quad\beta > 0,
 \]
-une approximation régulière et strictement positive de la fonction ReLU $x\mapsto \max(x,0)$.
+une approximation régulière et strictement positive de la fonction ReLU $x\mapsto \max(x,0)$. Cela garantit que $\lambda_t > 0$.
 
-La valeur de $h(t)$ peut signaler un comportement inhibiteur pour certaines composantes (quand $h_k$ devient proche de $-1$) et excitateur pour d'autres (valeur proche de $1$), qui est d'autant plus fort que le dernier événement est récent: $h(t)$ étant ramené vers $0$ au cours du temps, l'effet inhibiteur ou excitateur s'estompe.
+La valeur de $h(t)$ peut signaler un comportement inhibiteur pour certaines composantes (valeur proche de $-1$) et excitateur pour d'autres (valeur proche de $1$), qui est d'autant plus fort que le dernier événement est récent. L'état caché est ramené vers $0$ sur les temps longs, mais dernière couche transforme l'état caché $h(t)$ en une somme d'exponentielles, ce qui permet d'accéder à une classe assez large de dynamiques: un effet excitateur dominant pour l'une des composantes du processus peut s'affaiblir ou même laisser la place à un effet inhibiteur. La \autoref{fig:exampleRNNIntensityTraj} montre quelques dynamiques possibles.
+
+\begin{figure}[!ht]
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../notebooks/example_rnnplot.pdf}
+		\caption{Réalisation d'un processus RNN avec amortissement univarié. Il présente une dynamique auto-excitatrice semblable à un Hawkes à noyau exponentiel.}
+	\end{subfigure}
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../notebooks/example_rnnplot2d.pdf}
+		\caption{Réalisation d'un Decay-RNN bivarié. Il présente des effets d'excitation-inhibition mutuels ou auto-suscités.}
+	\end{subfigure}
+	\caption{Trajectoires d'intensité et événements pour des processus Decay-RNN univarié et bivarié, à poids aléatoires.}\label{fig:exampleRNNIntensityTraj}
+\end{figure}
 
 
 \subsubsection{Réseau LSTM avec amortissement}
@@ -116,12 +130,12 @@ Les paramètres sont mis à jour pour l'intervalle $(t_i, t_{i+1}]$ via les équ
 \end{align}
 \end{subequations}
 
-Ce réseau offre une dynamique plus riche que le Decay-RNN: l'état-cellule converge au cours du temps vers une valeur de long terme $\bar{c}_i$. Un effet excitateur dominant pour l'une des composantes $k$ du processus peut s'affaiblir sans disparaître, ou même laisser la place à un effet inhibiteur. La \autoref{fig:exampleLSTMIntensityTraj} illustre un cas unidimensionnel où chaque événement a un effet auto-inhibiteur immédiat, qui est corrigé par une excitation externe qui s'affaiblit.
-
-\begin{figure}
-	\includegraphics[width=\linewidth]{../notebooks/example_iiiiiilstmplot.pdf}
+\begin{figure}[!h]
+	\includegraphics[width=\linewidth]{../notebooks/example_lstmplot.pdf}
 	\caption{Trajectoire générée par un modèle LSTM non-entraîné, avec des poids générés aléatoirement.}\label{fig:exampleLSTMIntensityTraj}
 \end{figure}
+
+Ce réseau offre également une dynamique riche comme le modèle Decay-RNN. \citeauthor{meiEisnerNeuralHawkes} introduisent une valeur de long terme $\bar{c}_i$ pour l'état-cellule. La \autoref{fig:exampleLSTMIntensityTraj} illustre un cas unidimensionnel où chaque événement a un effet auto-inhibiteur immédiat, qui est corrigé par une excitation externe qui s'affaiblit.
 
 
 
