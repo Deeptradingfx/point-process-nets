@@ -15,9 +15,9 @@ On a utilisé deux jeux de données synthétiques. \autoref{tab:synthHawkesData}
 	\centering
 	\begin{tabular}[]{ccccccc}
 		\toprule
-		$K$ & $T$ & $\mu$ & $\alpha$ & $\beta$ & Nombre moyen d'événements & Nombre d'exemples\\ \hline\hline
+		$K$ & $T$ & $\mu$ & $\alpha$ & $\beta$ & Nombre moyen d'événements & Nombre d'exemples\\ \midrule
 		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 600 \\\hline
-		2 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 600
+		2 & 3600 & $(0.2, 0.2)^\intercal$ & $\begin{bmatrix}0.1 & 0.15\\0.01&0.01\end{bmatrix}$ & 8.0 & $\approx 1660$ & 1000
 	\end{tabular}
 	\caption{Paramètres des données synthétiques.}\label{tab:synthHawkesData}
 \end{table}
@@ -29,7 +29,7 @@ Le premier jeu de données est un processus de Hawkes en dimension $K=1$ avec $\
 
 
 \begin{figure}[ht]
-	\includegraphics[width=\linewidth]{../results/seq_length_distrib_HawkesDecayRNN-1d-hidden_32-20181205-230630.pdf}
+	\includegraphics[width=\linewidth]{../results/seq_length_distrib_HawkesDecayRNN-1d-hidden32-20181205-230630.pdf}
 	\caption{Distribution du nombre d'événements. $K=1$ type d'événements. Hawkes vs. Decay-RNN avec $D=32$ neurones cachés. Entraîné sur le jeu de données \autoref{tab:synthHawkesData}.}\label{fig:1DRNNlengthDistrib}
 \end{figure}
 
