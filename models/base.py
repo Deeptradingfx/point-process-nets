@@ -84,7 +84,7 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     process_dim = model.process_dim
     model.eval()
     n_samples = 1000
-    hmax = 50
+    hmax = 40
     timestep = hmax / n_samples
     dt_vals = torch.linspace(0, hmax, n_samples + 1)
     h_t_vals = h_t * torch.exp(-decay * dt_vals[:, None])
@@ -105,12 +105,10 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     if plot:
         fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(10, 4), dpi=100)
         ax0.plot(dt_vals.numpy(), density.numpy(),
-                 linestyle='-', linewidth=.8, label='density $p_i(u)$')
-        ax0.plot(dt_vals.numpy(), intens_t_vals_sum.numpy(),
-                 linestyle='--', linewidth=.7, label=r'intensity $\bar\lambda$')
+                 linestyle='-', linewidth=.8)
         ax0.set_title("Probability density $p_i(u)$\nof the next increment")
         ax0.set_xlabel("Time $u$")
-        ax0.legend()
+        ax0.set_ylabel('density $p_i(u)$')
         ylims = ax0.get_ylim()
         ax0.vlines(estimate_dt.item(), *ylims,
                    linestyle='--', linewidth=.7, color='red',
@@ -121,11 +119,14 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
         ax0.set_ylim(ylims)
         ax0.legend()
 
+        ax1.plot(dt_vals.numpy(), intens_t_vals_sum.numpy(),
+                 linestyle='-', linewidth=.7, label=r'total intensity $\bar\lambda$')
         for k in range(process_dim):
             ax1.plot(dt_vals.numpy(), intens_t_vals[:, k].numpy(),
                      label='type {}'.format(k),
                      linestyle='--', linewidth=.7)
         ax1.set_title("Intensities")
+        ax1.set_xlabel("Time $t$")
         ax1.legend()
         # definite integral of the density
         return (estimate_dt, next_dt, error_dt, next_type, estimate_type), fig

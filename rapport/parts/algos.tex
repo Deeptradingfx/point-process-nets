@@ -30,5 +30,12 @@ et on a l'expression de l'estimateur:
 	\hat{t}_i = t_{i-1} + \int_0^\infty u p_i(u)\,du.
 \end{equation}
 
+La \autoref{fig:probDensityPlot2DLSTM} illustre cette densité de probabilité et le choix de l'estimation $\hat{t}_i$ dans le cas du modèle LSTM avec $K=2$.
+
+\begin{figure}[!ht]
+	\centering
+	\includegraphics[width=\linewidth]{../notebooks/lstm_2d_prediction_graphs.pdf}
+	\caption{Densité de probabilité du prochain événement, pour la prédiction du prochain événement sur des données Hawkes 2D avec le LSTM.}\label{fig:probDensityPlot2DLSTM}
+\end{figure}
 
 \end{document}

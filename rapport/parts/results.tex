@@ -9,7 +9,7 @@ Les modèles ont été entraînés sur des jeux de données synthétiques géné
 
 Un premier indicateur pour voir si le modèle peut retrouver la structure d'un Hawkes est de regarder la distribution du nombre d'événements, au total $N_T$ et par type d'événement $N^k_T, k\in\llbracket 1,K\rrbracket$. Réaliser le graphe de l'intensité $\lambda_t$ pour une séquence d'événements simulée permet aussi de voir si les phénomènes d'auto-excitation sont reflétés.
 
-On a utilisé deux jeux de données synthétiques. \autoref{tab:synthHawkesData}.
+On a utilisé deux jeux de données synthétiques, détaillés \autoref{tab:synthHawkesData}.
 
 \begin{table}[h]
 	\centering
@@ -18,7 +18,7 @@ On a utilisé deux jeux de données synthétiques. \autoref{tab:synthHawkesData}
 		$K$ & \multicolumn{4}{c}{Paramètres} & Nb. moyen d'évts. & \multicolumn{2}{c}{Dataset} \\ \cmidrule(r){2-5}\cmidrule(r){7-8}
 		    & $T$ & $\mu$ & $\alpha$ & $\beta$ & & Train & Test\\ \midrule
 		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 4000 & 1000 \\ \midrule
-		2 & 3600 & $(0.1, 0.1)^\intercal$ & $\begin{bmatrix}0.1 & 0.01\\0.01 &0.1\end{bmatrix}$ & 8.0 & $\approx 808$ & 3000 & 1000\\
+		2 & 3600 & $(0.1, 0.1)^\intercal$ & $\begin{bmatrix}0.1 & 0.01\\0.01 &0.1\end{bmatrix}$ & 1.0 & $\approx 808$ & 3000 & 1000\\
 		\bottomrule
 	\end{tabular}
 	\caption{Paramètres des données synthétiques.}\label{tab:synthHawkesData}
@@ -44,9 +44,10 @@ Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles De
 	\caption{Intensité d'un Decay-RNN univarié, entraîné sur les données 1D simulées à partir d'un Hawkes \autoref{tab:synthHawkesData}.}\label{fig:1DRNNintensityPlot}
 \end{figure}
 
-\begin{figure}[!ht]
-	\includegraphics[width=\linewidth]{../notebooks/lstm_2d_prediction_graphs.pdf}
-	\caption{Densité de probabilité du prochain événement, pour la prédiction du prochain événement sur des données Hawkes 2D.}
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
+	\caption{RMSE, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=1$.}\label{fig:rmse1DhawkesData}
 \end{figure}
 
 
