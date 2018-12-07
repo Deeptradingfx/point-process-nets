@@ -116,5 +116,5 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
         ax0.set_ylim(ylims)
         ax0.legend()
         # definite integral of the density
-        return (estimate_dt, next_dt, error_dt), fig
+        return (estimate_dt, next_dt, error_dt, next_type, estimate_type), fig
     return estimate_dt, next_dt, error_dt, next_type, estimate_type
