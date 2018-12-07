@@ -306,7 +306,7 @@ def read_predict(model: HawkesDecayRNN, sequence, types, lengths, plot: bool = F
         dt_seq = dt_seq[:length]
         h_t = model.init_hidden()
         for i in range(length):
-            x = model.embed(types[i]).unsqueeze(-1)
+            x = model.embed(types[i]).unsqueeze(0)
             concat = torch.cat((x, h_t), dim=1)
             decay = model.decay_layer(concat)
             h_t = model.rnn_layer(x, h_t)
