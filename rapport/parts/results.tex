@@ -38,7 +38,7 @@ Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles De
 	\caption{Distributions des nombres d'événements pour les modèles Decay-RNN et LSTM entraînés sur le jeu de données synthétiques 1D.}\label{fig:1DlengthDistrib}
 \end{figure}
 
-Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction sur les données de test, à la fois pour le temps d'arrivée du prochain événement et l'erreur sur son type (voir \autoref{fig:rmseSynthData}). Les résultats nous suggèrent que le LSTM souffrirait d'un problème de sur-ajustement.
+Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction sur les données de test, à la fois pour le temps d'arrivée du prochain événement et l'erreur sur son type (voir \autoref{fig:rmseSynthData}). Les résultats nous suggèrent que le LSTM souffrirait d'un problème de sur-ajustement par rapport au Decay-RNN. Globalement, les deux modèles ont une erreur assez élevée et n'arrivent pas à prédire correctement le type du prochain événement.
 
 \begin{figure}[ht]
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden64_20181206-234848.pdf}
@@ -47,14 +47,14 @@ Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction s
 
 \begin{figure}
 	\centering
-	\begin{subfigure}{0.47\linewidth}
+	\begin{subfigure}{0.8\linewidth}
 		\centering
 		\includegraphics[width=\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
 		\caption{RMSE, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=1$, $D=64$.}\label{fig:rmse1DhawkesData}	
 	\end{subfigure}
-	\begin{subfigure}{0.47\linewidth}
+	\begin{subfigure}{0.8\linewidth}
 		\centering
-		\includegraphics[width=\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
+		\includegraphics[width=\linewidth]{../results/2D_Hawkes_Data_RMSE.pdf}
 		\caption{RMSE et précision de prédiction du type $k_i$, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=2$, $D=64$.}\label{fig:rmse2DhawkesData}	
 	\end{subfigure}
 	\caption{Erreur quadratique de prédiction pour les modèles Decay-RNN et LSTM.}\label{fig:rmseSynthData}
