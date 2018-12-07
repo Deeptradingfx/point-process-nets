@@ -81,8 +81,12 @@ Le sens de variation de chaque terme dépend du signe de l'élément de $W_l$ et
 \end{itemize}
 Ces majorants restent valables sur tout l'intervalle $(t_{i-1}, t_i]$, et sont calculés à chaque événement. Ils forment une matrice $\overline{M}\in\RR^{K\times D}$. L'expression du majorant de chaque composante est donné en modifiant \eqref{eq:hiddenStateComponent} par
 \[
-	{[\lambda^{*}]}_k := \sum_{j=1}^{D} \overline{M}_{kj},\quad k\in \llbracket 1, K\rrbracket
+	{[\lambda^{*}]}_k := \sum_{j=1}^{D} \overline{M}_{kj},\quad k\in \llbracket 1, K\rrbracket.
 \]
+
+\subsection{Prédiction}
+
+L'intégrale \eqref{eq:nextIncrementDensity} peut s'estimer par une méthode des trapèzes.
 
 
 \end{document}

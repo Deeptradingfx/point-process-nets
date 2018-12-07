@@ -3,13 +3,12 @@ Neural network models for point processes.
 
 @author: manifold
 """
-import numpy as np
 import torch
 from torch import Tensor
 from torch import nn
 from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
-from models.base import SeqGenerator
+from models.base import SeqGenerator, predict_from_hidden
 
 
 class HawkesLSTMCell(nn.Module):
@@ -62,8 +61,6 @@ class HawkesLSTMCell(nn.Module):
         # h_i = output * torch.tanh(c_i)  # hidden state just after event
         # Update the cell state target
         c_target = forget_target * c_target + input_target * z_i
-        # Decay the cell state to its value before the known next event at t+dt
-        # used for the next pass in the loop
         return c_i, c_target, output, decay
 
 
@@ -84,7 +81,7 @@ class HawkesLSTM(nn.Module):
         self.lstm_cell = HawkesLSTMCell(self.process_dim, hidden_size)
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
-            nn.Linear(hidden_size, self.process_dim, bias=False),  # no bias in the model
+            nn.Linear(hidden_size, self.process_dim, bias=True),  # no bias in the model
             nn.Softplus(beta=3.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
@@ -164,6 +161,7 @@ class HawkesLSTM(nn.Module):
             cells.append(cell_i)  # record it
             cell_targets.append(c_target)  # record
             hiddens_ti.append(h_t)  # record it
+            beg_index += batch_size  # move the starting index for the data in the PackedSequence
         return hiddens_ti, outputs, cells, cell_targets, decays
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens_ti: List[Tensor],
@@ -211,7 +209,7 @@ class HawkesLSTM(nn.Module):
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
-        n_mc_samples = 1
+        n_mc_samples = 10
         # shape N * batch * M_mc
         taus = torch.rand(n_batch, n_times, 1, n_mc_samples).to(device)
         taus: Tensor = dt_seq[:, :, None, None] * taus  # inter-event times samples)
@@ -360,3 +358,25 @@ class HawkesLSTMGen(SeqGenerator):
         # compute the intensity using the Softplus inside the intensity layer of the model
         res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
+
+
+def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths, plot: bool = False):
+    process_dim = model.process_dim
+    length = seq_lengths.item()
+    with torch.no_grad():
+        dt_seq = sequence[1:] - sequence[:-1]
+        dt_seq = dt_seq[:length]
+        h_t, c_t, c_target = model.init_hidden()
+        for i in range(length):
+            x = model.embed(seq_types[i]).unsqueeze(-1)
+            c_t, c_target, output, decay = model.lstm_cell(x, h_t, c_t, c_target)
+            if i < length-1:
+                c_t = c_t*torch.exp(-decay * dt_seq[i, None])  # decay the cell state
+                h_t = output * torch.tanh(c_t)
+        last_t = sequence[i]
+        next_t = sequence[i+1]
+        next_type = seq_types[i+1]
+        next_dt = dt_seq[i]
+        print("last evt {:.3f},\tnext {:.3f}\tin {:.3f} of type {}"
+              .format(last_t.item(), next_t.item(), next_dt.item(), next_type.item()))
+        return predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)

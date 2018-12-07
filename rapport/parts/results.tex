@@ -13,32 +13,36 @@ On a utilisé deux jeux de données synthétiques. \autoref{tab:synthHawkesData}
 
 \begin{table}[h]
 	\centering
-	\begin{tabular}[]{ccccccc}
+	\begin{tabular}{@{}cccccccc}
 		\toprule
-		$K$ & $T$ & $\mu$ & $\alpha$ & $\beta$ & Nombre moyen d'événements & Nombre d'exemples\\ \hline\hline
-		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 600 \\\hline
-		2 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 600
+		$K$ & \multicolumn{4}{c}{Paramètres} & Nb. moyen d'évts. & \multicolumn{2}{c}{Dataset} \\ \cmidrule(r){2-5}\cmidrule(r){7-8}
+		    & $T$ & $\mu$ & $\alpha$ & $\beta$ & & Train & Test\\ \midrule
+		1 & 3600 & 0.2 & 0.1 & 2.0 & $\approx 800$ & 4000 & 1000 \\ \midrule
+		2 & 3600 & $(0.2, 0.2)^\intercal$ & $\begin{bmatrix}0.1 & 0.15\\0.01&0.01\end{bmatrix}$ & 8.0 & $\approx 1660$ & 1600 & 400\\
+		\bottomrule
 	\end{tabular}
 	\caption{Paramètres des données synthétiques.}\label{tab:synthHawkesData}
 \end{table}
 
-Le premier jeu de données est un processus de Hawkes en dimension $K=1$ avec $\mu=1$, $\alpha = \num{0.2}$, $\beta = \num{3.0}$ et $T = \num{80}$ (en secondes). Le nombre d'événements attendu est $T/(1-\alpha) = \num{100}$.
-
-\paragraph{Decay-RNN} Le modèle Decay-RNN a été entraîné sur des processus de Hawkes.
-
-
+Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles Decay-RNN et LSTM sont donnés \autoref{fig:1DlengthDistrib}.
 
 \begin{figure}[ht]
-	\includegraphics[width=\linewidth]{../results/seq_length_distrib_HawkesDecayRNN-1d-hidden_32-20181205-230630.pdf}
-	\caption{Distribution du nombre d'événements. $K=1$ type d'événements. Hawkes vs. Decay-RNN avec $D=32$ neurones cachés. Entraîné sur le jeu de données \autoref{tab:synthHawkesData}.}\label{fig:1DRNNlengthDistrib}
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../results/length_distrib_HawkesDecayRNN-1d-hidden_64-20181206-234848.pdf}
+		\caption{Distribution du nombre d'événements. Hawkes et Decay-RNN avec $K=1$, $D=64$ neurones cachés. Entraîné sur le jeu de données \autoref{tab:synthHawkesData}.}\label{fig:1DRNNlengthDistrib}
+	\end{subfigure}
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../results/length_distrib_HawkesLSTM-1d-hidden64-20181206-235311.pdf}
+		\caption{Distribution du nombre d'événements. Hawkes et LSTM avec $K=1$, $D=64$ neurones cachés. Entraîné sur le jeu de données \autoref{tab:synthHawkesData}.}\label{fig:1DLSTMlengthDistrib}	
+	\end{subfigure}
+	\caption{Distributions des nombres d'événements pour les modèles Decay-RNN et LSTM entraînés sur le jeu de données synthétiques 1D.}\label{fig:1DlengthDistrib}
 \end{figure}
 
+
 \begin{figure}[ht]
-	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden32_20181205-230630.pdf}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden64_20181206-234848.pdf}
 	\caption{Intensité d'un Decay-RNN univarié, entraîné sur les données 1D simulées à partir d'un Hawkes \autoref{tab:synthHawkesData}.}\label{fig:1DRNNintensityPlot}
 \end{figure}
-
-
 
 
 

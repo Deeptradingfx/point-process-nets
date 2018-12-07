@@ -131,8 +131,13 @@ Les paramètres sont mis à jour pour l'intervalle $(t_i, t_{i+1}]$ via les équ
 \end{subequations}
 
 \begin{figure}[!h]
-	\includegraphics[width=\linewidth]{../notebooks/example_lstmplot.pdf}
-	\caption{Trajectoire générée par un modèle LSTM non-entraîné, avec des poids générés aléatoirement.}\label{fig:exampleLSTMIntensityTraj}
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../notebooks/example_lstmplot.pdf}
+	\end{subfigure}
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../notebooks/example_lstmplot2d.pdf}
+	\end{subfigure}
+	\caption{Trajectoires générées par un modèle LSTM non-entraîné, avec des poids générés aléatoirement.}\label{fig:exampleLSTMIntensityTraj}
 \end{figure}
 
 Ce réseau offre également une dynamique riche comme le modèle Decay-RNN. \citeauthor{meiEisnerNeuralHawkes} introduisent une valeur de long terme $\bar{c}_i$ pour l'état-cellule. La \autoref{fig:exampleLSTMIntensityTraj} illustre un cas unidimensionnel où chaque événement a un effet auto-inhibiteur immédiat, qui est corrigé par une excitation externe qui s'affaiblit.

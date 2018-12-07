@@ -4,7 +4,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 
-from models.base import SeqGenerator
+from models import base
+import matplotlib.pyplot as plt
 
 
 class HawkesDecayRNN(nn.Module):
@@ -194,7 +195,7 @@ class HawkesDecayRNN(nn.Module):
         return res
 
 
-class HawkesRNNGen(SeqGenerator):
+class HawkesRNNGen(base.SeqGenerator):
     """
     Event sequence generator for the Hawkes Decay-RNN model.
 
@@ -291,37 +292,29 @@ class HawkesRNNGen(SeqGenerator):
                     self.intens_hist.append(intens)
 
 
-def read_predict(model: HawkesDecayRNN, seq_times: Tensor,
-                 seq_types: Tensor, seq_length: Tensor):
-    """
-    Reads an event sequence and predicts the next event time and type.
-
-    Args:
-        model: Decay-RNN model instance
-        seq_times: event sequence arrival times (with 0)
-        seq_types: event types (one-hot encoded)
-        seq_length: event sequence length
-
-    Returns:
-
-    """
-    ndim = seq_times.ndimension()
-    if ndim < 2:
-        seq_times = seq_times.unsqueeze(1)
-        seq_types = seq_types.unsqueeze(1)
-    seq_times = seq_times[:seq_length + 1]
-    seq_types = seq_types[:seq_length + 1]
-    model.eval()
-    hidden_t, decay = model.init_hidden()
-    dt_seq = seq_times[1:] - seq_times[:-1]
-    assert seq_length == dt_seq.shape[0]
-    # Read event sequence
-    for i in range(seq_length):
-        hidden, decay, hidden_t = model(dt_seq[i], seq_types[i], hidden_t)
-    # We read the types of all events up until this one
-    last_ev_time = seq_times[-2]  # last read event time
-    type_real = seq_types[-1]  # real next event's type
-    ds = dt_seq[-1]  # time until next event
-
-
-    return
+def read_predict(model: HawkesDecayRNN, sequence, types, lengths, plot: bool = False):
+    process_dim = model.process_dim
+    global decay
+    length = lengths.item()
+    with torch.no_grad():
+        dt_seq = sequence[1:] - sequence[:-1]
+        dt_seq = dt_seq[:length]
+        h_t = model.init_hidden()
+        for i in range(length):
+            x = model.embed(types[i]).unsqueeze(-1)
+            concat = torch.cat((x, h_t), dim=1)
+            decay = model.decay_layer(concat)
+            h_t = model.rnn_layer(x, h_t)
+            if i < length-1:
+                h_t = h_t*torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
+        last_t = sequence[i]
+        next_t = sequence[i+1]
+        next_type = types[i+1]
+        next_dt = dt_seq[i]
+        # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
+        #       .format(last_t.item(), next_t.item(), real_dt.item()))
+        n_samples = 1000
+        hmax = 40
+        timestep = hmax/n_samples
+        dt_vals = torch.linspace(0, hmax, n_samples+1)
+        return base.predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)

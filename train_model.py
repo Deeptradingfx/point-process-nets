@@ -14,8 +14,6 @@ from utils.load_synth_data import process_loaded_sequences
 from models import HawkesDecayRNN, HawkesLSTM
 from train_functions import train_decayrnn, train_lstm
 
-SEED = 52
-torch.manual_seed(SEED)
 DEFAULT_BATCH_SIZE = 24
 DEFAULT_HIDDEN_SIZE = 12
 DEFAULT_LEARN_RATE = 0.02

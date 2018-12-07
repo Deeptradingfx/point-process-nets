@@ -1,5 +1,8 @@
 import numpy as np
-from torch import nn
+import torch
+from matplotlib import pyplot as plt
+from torch import nn, Tensor
+import matplotlib.pyplot as plt
 
 
 class SeqGenerator:
@@ -25,8 +28,10 @@ class SeqGenerator:
         self.intens_hist = []
         self._plot_times = []
 
+    def generate_sequence(self, tmax: float, record_intensity: bool):
+        raise NotImplementedError
+
     def plot_events_and_intensity(self, model_name: str = None, debug=False):
-        import matplotlib.pyplot as plt
         gen_seq_times = self.event_times
         gen_seq_types = self.event_types
         sequence_length = len(gen_seq_times)
@@ -74,3 +79,47 @@ class SeqGenerator:
         ax.legend()
         fig.tight_layout()
         return fig
+
+
+def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
+    n_samples = 1000
+    hmax = 40
+    timestep = hmax / n_samples
+    dt_vals = torch.linspace(0, hmax, n_samples + 1)
+    h_t_vals = h_t * torch.exp(-decay * dt_vals[:, None])
+    intens_t_vals: Tensor = model.intensity_layer(h_t_vals)
+    intens_t_vals_sum = intens_t_vals.sum(dim=1)
+    integral_ = torch.cumsum(timestep * intens_t_vals_sum, dim=0)
+    # density for the time-until-next-event law
+    density = intens_t_vals_sum * torch.exp(-integral_)
+    t_pit = dt_vals * density  # integrand for the time estimator
+    prob_type = (intens_t_vals / intens_t_vals_sum[:, None]) * density[:, None]  # integrand for the types
+    # trapeze method
+    estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
+    estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum()
+    estimate_type = torch.argmax(estimate_type_prob)
+    print("type estimation prob {}".format(estimate_type_prob))
+    print("estimated type {}, real type {}".format(estimate_type, next_type))
+    error_dt = (estimate_dt - next_dt) ** 2
+    if plot:
+        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(9, 4), dpi=100)
+        ax0.plot(dt_vals.numpy(), density.numpy(),
+                 linestyle='--', linewidth=.7)
+        ax0.set_title("probability density $p_i(u)$\nof the next increment")
+        ax0.set_xlabel("Time $u$")
+        ax0.set_ylabel("$p_i(u)$")
+        ylims = ax0.get_ylim()
+        ax0.vlines(estimate_dt.item(), *ylims,
+                   linestyle='--', linewidth=.7, color='red',
+                   label=r'estimate $\hat{t}_i - t_{i-1}$')
+        ax0.vlines(next_dt.item(), *ylims,
+                   linestyle='--', linewidth=.7, color='green',
+                   label=r'true $t_i - t_{i-1}$')
+        ax0.legend()
+        # definite integral of the density
+        cumul_dens = (timestep * density).cumsum(dim=0)
+        ax1.plot(dt_vals.numpy(), cumul_dens.numpy(),
+                 linestyle='--', linewidth=.7)
+        ax1.set_title('Cdf of the increment')
+        return (estimate_dt, next_dt, error_dt), fig
+    return estimate_dt, next_dt, error_dt
