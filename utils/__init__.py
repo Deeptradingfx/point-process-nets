@@ -1,0 +1,1 @@
+from .load_synth_data import one_hot_embedding

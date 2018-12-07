@@ -61,11 +61,12 @@ if __name__ == '__main__':
         loaded_hawkes_data = pickle.load(f)
 
     mu = loaded_hawkes_data['mu']
+    alpha = loaded_hawkes_data['alpha']
     decay = loaded_hawkes_data['decay']
     tmax = loaded_hawkes_data['tmax']
 
     print("Hawkes process parameters:")
-    for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
+    for label, val in [("mu", mu), ("alpha", alpha), ("decay", decay), ("tmax", tmax)]:
         print("{:<20}{}".format(label, val))
 
     device = torch.device('cuda:0' if USE_CUDA else 'cpu')
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     MODEL_NAME = model.__class__.__name__
     print("Chose model {}".format(MODEL_NAME))
     print("Hidden size: {}".format(hidden_size))
-    optimizer = optim.Adagrad(model.parameters(), learning_rate)
+    optimizer = optim.Adam(model.parameters(), learning_rate)
 
     total_sample_size = seq_times.size(0)
     if args.train_size:
