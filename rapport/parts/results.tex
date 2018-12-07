@@ -40,12 +40,12 @@ Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles De
 
 Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction sur les données de test, à la fois pour le temps d'arrivée du prochain événement et l'erreur sur son type (voir \autoref{fig:rmseSynthData}). Les résultats nous suggèrent que le LSTM souffrirait d'un problème de sur-ajustement par rapport au Decay-RNN. Globalement, les deux modèles ont une erreur assez élevée et n'arrivent pas à prédire correctement le type du prochain événement.
 
-\begin{figure}[ht]
+\begin{figure}[!ht]
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden64_20181206-234848.pdf}
 	\caption{Intensité d'un Decay-RNN univarié, entraîné sur les données 1D simulées à partir d'un Hawkes \autoref{tab:synthHawkesData}.}\label{fig:1DRNNintensityPlot}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[!ht]
 	\centering
 	\begin{subfigure}{0.8\linewidth}
 		\centering
@@ -58,6 +58,13 @@ Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction s
 		\caption{RMSE et précision de prédiction du type $k_i$, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=2$, $D=64$.}\label{fig:rmse2DhawkesData}	
 	\end{subfigure}
 	\caption{Erreur quadratique de prédiction pour les modèles Decay-RNN et LSTM.}\label{fig:rmseSynthData}
+\end{figure}
+
+La fonction de perte du modèle RMTPP ne semble pas converger au cours de son entraînement \autoref{fig:loss}, et ce malgré plusieurs ajustements (voir \eqref{eq:rmtppLambdaModified}) par rapport à \autocite{DuRMTPP}.
+\begin{figure}[!ht]
+	\centering
+	\includegraphics[width=\linewidth]{../results/loss_funct}
+	\caption{Fonction de perte pour le modèle RMTPP, entraîné sur le jeu de données Hawkes bidimensionnel ($K=2$) \autoref{tab:synthHawkesData}.}\label{fig:loss}
 \end{figure}
 
 
