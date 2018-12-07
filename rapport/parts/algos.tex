@@ -30,5 +30,11 @@ et on a l'expression de l'estimateur:
 	\hat{t}_i = t_{i-1} + \int_0^\infty u p_i(u)\,du.
 \end{equation}
 
+\paragraph{}
+Pour le réseau récurrent RMTPP, le modèle s'entraine sur la fonction perte
+\begin{equation}
+l =  \sum_i(\log\mathcal{P}(k_{i+1} | \mathcal{F}_{t_{i-1}}) + \log f(t_{i+1}|  \mathcal{F}_{t_{i-1}}   )  )
+\end{equation}
+
 
 \end{document}
