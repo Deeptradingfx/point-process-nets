@@ -167,14 +167,13 @@ class HawkesDecayRNN(nn.Module):
         ]  # intensities just before the events occur
         # shape batch * N * input_dim
         intens_at_evs = nn.utils.rnn.pad_sequence(
-            intens_at_evs, padding_value=1.0)  # pad with 0 to get rid of the non-events
+            intens_at_evs, padding_value=0.)
         log_intensities = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
+        # reduce on the type dim. (dropping the nonevents)
         intens_ev_times_filtered = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=2)
-        # reduce on the type dim. (dropping the 0s in the process), then
-        # reduce the log-intensities on seq_times dim.
-        # shape (batch_size,)
+        # reduce the log-intensities on seq_times dim. shape (batch_size,)
         log_sum = intens_ev_times_filtered.sum(dim=1)
         # Take uniform time samples inside of each inter-event interval
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))

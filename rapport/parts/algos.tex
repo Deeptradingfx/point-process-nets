@@ -3,7 +3,7 @@
 
 \begin{document}
 	
-Les réseaux de neurones sont implémentés en utilisant la librairie \textsf{PyTorch} \cite{paszke2017automatic}, permettant de faire du calcul tensoriel avec différentiation automatique (pour calculer les gradients).\footnote{Le code est ici: \url{https://github.com/ManifoldFR/point-process-nets}}
+Les réseaux de neurones sont implémentés en utilisant la librairie \textsf{PyTorch} \cite{paszke2017automatic}, permettant de faire du calcul tensoriel avec différentiation automatique (pour calculer les gradients).\footnote{Le code est ici: \url{https://github.com/ManifoldFR/point-process-nets}} L'entraînement utilise l'algorithme de descente du gradient Adam \autocite{AdamKingmaB14}.
 
 Une fonctionnelle de perte possible, utilisée dans \autocite{meiEisnerNeuralHawkes} pour entraîner le réseau sur des données réelles, est la log-vraisemblance \eqref{eq:likelihood} d'une suite d'événements $\{(t_i,k_i)\}_i$. La formule\footnotemark~suivante est démontrée \cite[15]{meiEisnerNeuralHawkes}: 
 \begin{equation}\label{eq:explicitLikelihood}

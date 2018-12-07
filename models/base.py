@@ -95,7 +95,7 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     density = intens_t_vals_sum * torch.exp(-integral_)
     t_pit = dt_vals * density  # integrand for the time estimator
     ratio = intens_t_vals / intens_t_vals_sum[:, None]
-    prob_type = (ratio) * density[:, None]  # integrand for the types
+    prob_type = ratio * density[:, None]  # integrand for the types
     # trapeze method
     estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
     estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum()
