@@ -61,11 +61,12 @@ if __name__ == '__main__':
         loaded_hawkes_data = pickle.load(f)
 
     mu = loaded_hawkes_data['mu']
+    alpha = loaded_hawkes_data['alpha']
     decay = loaded_hawkes_data['decay']
     tmax = loaded_hawkes_data['tmax']
 
     print("Hawkes process parameters:")
-    for label, val in [("mu", mu), ("decay", decay), ("tmax", tmax)]:
+    for label, val in [("mu", mu), ("alpha", alpha), ("decay", decay), ("tmax", tmax)]:
         print("{:<20}{}".format(label, val))
 
     device = torch.device('cuda:0' if USE_CUDA else 'cpu')
