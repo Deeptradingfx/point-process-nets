@@ -81,6 +81,7 @@ class SeqGenerator:
 
 
 def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
+    process_dim = model.process_dim
     model.eval()
     n_samples = 1000
     hmax = 40
@@ -93,14 +94,15 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     # density for the time-until-next-event law
     density = intens_t_vals_sum * torch.exp(-integral_)
     t_pit = dt_vals * density  # integrand for the time estimator
-    prob_type = (intens_t_vals / intens_t_vals_sum[:, None]) * density[:, None]  # integrand for the types
+    ratio = intens_t_vals / intens_t_vals_sum[:, None]
+    prob_type = (ratio) * density[:, None]  # integrand for the types
     # trapeze method
     estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
     estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum()
     estimate_type = torch.argmax(estimate_type_prob)
     error_dt = (estimate_dt - next_dt) ** 2
     if plot:
-        fig, ax0 = plt.subplots(1, 1, figsize=(7, 4), dpi=100)
+        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(10, 4), dpi=100)
         ax0.plot(dt_vals.numpy(), density.numpy(),
                  linestyle='--', linewidth=.7)
         ax0.set_title("Probability density $p_i(u)$\nof the next increment")
@@ -115,6 +117,13 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
                    label=r'true $t_i - t_{i-1}$')
         ax0.set_ylim(ylims)
         ax0.legend()
+
+        for k in range(process_dim):
+            ax1.plot(dt_vals.numpy(), ratio[:, k].numpy(),
+                     label='type {}'.format(k),
+                     linestyle='--', linewidth=.7)
+        ax1.set_title("Intensity ratio\nfor each type")
+        ax1.legend()
         # definite integral of the density
         return (estimate_dt, next_dt, error_dt, next_type, estimate_type), fig
     return estimate_dt, next_dt, error_dt, next_type, estimate_type
