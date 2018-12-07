@@ -38,4 +38,11 @@ La \autoref{fig:probDensityPlot2DLSTM} illustre cette densité de probabilité e
 	\caption{Densité de probabilité du prochain événement, pour la prédiction du prochain événement sur des données Hawkes 2D avec le LSTM.}\label{fig:probDensityPlot2DLSTM}
 \end{figure}
 
+\paragraph{}
+Pour le réseau récurrent RMTPP, le modèle s'entraine sur la fonction perte
+\begin{equation}
+l =  \sum_i(\log\mathcal{P}(k_{i+1} | \mathcal{F}_{t_{i-1}}) + \log f(t_{i+1}|  \mathcal{F}_{t_{i-1}}   )  )
+\end{equation}
+
+
 \end{document}

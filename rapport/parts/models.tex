@@ -142,7 +142,71 @@ Les paramètres sont mis à jour pour l'intervalle $(t_i, t_{i+1}]$ via les équ
 
 Ce réseau offre également une dynamique riche comme le modèle Decay-RNN. \citeauthor{meiEisnerNeuralHawkes} introduisent une valeur de long terme $\bar{c}_i$ pour l'état-cellule. La \autoref{fig:exampleLSTMIntensityTraj} illustre un cas unidimensionnel où chaque événement a un effet auto-inhibiteur immédiat, qui est corrigé par une excitation externe qui s'affaiblit.
 
+\subsubsection{RMTPP( Recurrent Marked Temporal Point Process)}
 
+Ce modèle permet de modéliser simultanément les temps d'arrivées et le type des événements.  
+
+On se limite ici à un modèle avec deux types d'évènements. L'objectif de ce modèle est donc de faire de la prédiction d'événements ayant deux types. Par exemple dans les marchés financiers on peut s'intéresser à la prédiction  d'évènement de type "sell" et "buy".  Le modèle s'inspire du papier de \citeauthor{DuRMTPP} \cite{DuRMTPP}.{\tiny {\tiny }}
+
+La densité conditionnelle que le prochain événement se déroulera à t avec un type y est donnée par:
+
+\begin{equation}
+f^*(t,y) = f(t,y| \mathcal{F}_t)
+\end{equation}
+
+La fonction densité et la fonction intensité du processus sont liées par la relation:
+
+\begin{equation}
+f^*(t) = \lambda^*(t) \exp(-\int_{t_n}^{\infty}  \lambda^*(t) )
+\end{equation}
+
+
+\begin{figure}[!ht]
+	\centering
+	\includegraphics[width=\linewidth]{diagrams/rmtpp.pdf}
+	\caption{Architecture du RMTPP}\label{fig:RMTPP}
+\end{figure}
+
+
+\paragraph{Input Layer}
+
+Le type $y_{i}$  de l' évènement est transformé en un vecteur $y_{i } \in \mathcal{R} ^2$
+
+
+\paragraph{Hidden Layer}
+Le hidden state est mis à jour comme suit:
+\begin{equation}
+h_j = \max \{ W^y y_j + W^t t_j + W^h h_{j-1},0  \}  
+\end{equation}
+La fonction relu permet de s'assurer que $h_j$ est toujours positif.
+\paragraph{Marker Generation}
+Les types des évènements sont générés grâce à une distribution softmax.
+\begin{equation}
+\mathcal{P}(y_{j+1} = k|\mathcal{h}_j) = \frac{\exp({V_{k,:}}^y h_j + {b_k}^y)}{\sum_{k=1}^{K}{\exp(V_{k,:}}^y h_j + {b_k}^y) }
+\end{equation}
+
+\paragraph{Intensité conditionnelle}
+L'intensité conditionnelle est formulée comme suit:
+\begin{equation}
+\lambda^*(t) = \exp(\underbrace{{v^t}^T.h_j }_{\text{passé}}+ w_t \underbrace{(t-t_j)}_{\text{présent}} +\underbrace{ b_t}_{\text{intensité exogéne}}) 
+\end{equation}
+
+\begin{itemize}
+	\item Le terme ${v^t}^T.h_j$  \text{représente l'influence cumulée du passé}
+	\item Le second terme est l'influence du présent
+	\item Enfin le troisième terme est l'intensité de base
+	\item Le terme exponentiel permet de s'assurer que l'intensité est toujours positif mais aussi non linéaire  
+\end{itemize}
+
+\paragraph{Densité conditionnelle}
+L'intensité conditionelle $f^*$ est définie par:
+\begin{equation}
+\begin{aligned}
+f^*(t) &= \lambda^*(t) \exp\left(-\int_{t_n}^{\infty}  \lambda^*(t) \right) \\
+&= \exp \{  {v^t  }^T h_j + w^t (t - t_j) + b^t + \frac{1}{w^t}({v^t  }^T h_j + b^t ) -  \frac{1}{w^t}({v^t  }^T h_j + b^t +w^t (t - t_j) ) \}
+\end{aligned}
+\end{equation}
+L'avantage de ce modèle est donc que la fonction densité est explicitement calculable.
 
 
 \end{document}
