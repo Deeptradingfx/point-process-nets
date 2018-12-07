@@ -86,7 +86,26 @@ Ces majorants restent valables sur tout l'intervalle $(t_{i-1}, t_i]$, et sont c
 
 \subsection{Prédiction}
 
-L'intégrale \eqref{eq:nextIncrementDensity} peut s'estimer par une méthode des trapèzes.
+Nous avons calculé l'intégrale dans la densité \eqref{eq:nextIncrementDensity} par méthode d'Euler.
+
+L'indicateur de performance choisi est l'erreur quadratique (RMSE):
+\begin{equation}\label{eq:rmse}
+	\mathrm{RMSE} = \sqrt{\EE\left[{\left(\hat{t}_i - t_i\right)}^2\right]}
+\end{equation}
+que l'on estime sur l'ensemble d'entraînement par
+\[
+	\hat{R}_M = \sqrt{\frac{1}{M}\sum_{m=1}^M
+		\left(\hat{t}_i^{(m)} - t_i^{(m)}\right)^2
+	}
+\]
+Par méthode delta, on a
+\[
+	\sqrt{M}\left(\hat{R}_M - \mathrm{RMSE}\right)
+	\approx \mathcal{N}\left(0, \frac{
+		\Var\left((\hat{t}_i - t_i)^2\right)}{4 \mathrm{RMSE}}
+	\right)
+\]
+qui permet d'avoir une estimation de la variance de l'estimateur $\hat{R}_M$.
 
 
 \end{document}

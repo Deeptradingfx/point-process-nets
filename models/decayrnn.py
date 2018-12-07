@@ -1,11 +1,16 @@
-import torch
-from torch import nn
-from torch import Tensor
-from torch.nn.utils.rnn import PackedSequence
+"""
+LSTM point process model.
+
+@author: manifold
+"""
 from typing import Tuple, List
 
+import torch
+from torch import Tensor
+from torch import nn
+from torch.nn.utils.rnn import PackedSequence
+
 from models import base
-import matplotlib.pyplot as plt
 
 
 class HawkesDecayRNN(nn.Module):
@@ -313,8 +318,4 @@ def read_predict(model: HawkesDecayRNN, sequence, types, lengths, plot: bool = F
         next_dt = dt_seq[i]
         # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
         #       .format(last_t.item(), next_t.item(), real_dt.item()))
-        n_samples = 1000
-        hmax = 40
-        timestep = hmax/n_samples
-        dt_vals = torch.linspace(0, hmax, n_samples+1)
         return base.predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)

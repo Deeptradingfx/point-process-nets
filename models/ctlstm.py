@@ -1,13 +1,14 @@
 """
-Neural network models for point processes.
+LSTM point process model.
 
 @author: manifold
 """
+from typing import Tuple, List
+
 import torch
 from torch import Tensor
 from torch import nn
 from torch.nn.utils.rnn import PackedSequence
-from typing import Tuple, List
 from models.base import SeqGenerator, predict_from_hidden
 
 
@@ -377,6 +378,4 @@ def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths, plot: bool
         next_t = sequence[i+1]
         next_type = seq_types[i+1]
         next_dt = dt_seq[i]
-        print("last evt {:.3f},\tnext {:.3f}\tin {:.3f} of type {}"
-              .format(last_t.item(), next_t.item(), next_dt.item(), next_type.item()))
         return predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)

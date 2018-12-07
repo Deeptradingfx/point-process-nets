@@ -1,0 +1,2 @@
+{"model_name": "HawkesDecayRNN", "process_dim": 1, "hidden_size": 64, "data_file": "../data/simulated/hawkes_synthetic_exp_1d_20181205-142133.pkl", "avg_rmse": 4.968164181513394, "var_mse": 5145.736818721738, "std_rmse": 0.12946776290800469}
+{"model_name": "HawkesLSTM", "process_dim": 1, "hidden_size": 64, "data_file": "../data/simulated/hawkes_synthetic_exp_1d_20181205-142133.pkl", "avg_rmse": 5.032303409592984, "var_mse": 4564.140317920303, "std_rmse": 0.11337105363171686}

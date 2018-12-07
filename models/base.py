@@ -1,8 +1,7 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
 from torch import nn, Tensor
-import matplotlib.pyplot as plt
 
 
 class SeqGenerator:
@@ -82,6 +81,7 @@ class SeqGenerator:
 
 
 def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
+    model.eval()
     n_samples = 1000
     hmax = 40
     timestep = hmax / n_samples
@@ -98,14 +98,12 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
     estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum()
     estimate_type = torch.argmax(estimate_type_prob)
-    print("type estimation prob {}".format(estimate_type_prob))
-    print("estimated type {}, real type {}".format(estimate_type, next_type))
     error_dt = (estimate_dt - next_dt) ** 2
     if plot:
-        fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(9, 4), dpi=100)
+        fig, ax0 = plt.subplots(1, 1, figsize=(7, 4), dpi=100)
         ax0.plot(dt_vals.numpy(), density.numpy(),
                  linestyle='--', linewidth=.7)
-        ax0.set_title("probability density $p_i(u)$\nof the next increment")
+        ax0.set_title("Probability density $p_i(u)$\nof the next increment")
         ax0.set_xlabel("Time $u$")
         ax0.set_ylabel("$p_i(u)$")
         ylims = ax0.get_ylim()
@@ -115,11 +113,8 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
         ax0.vlines(next_dt.item(), *ylims,
                    linestyle='--', linewidth=.7, color='green',
                    label=r'true $t_i - t_{i-1}$')
+        ax0.set_ylim(ylims)
         ax0.legend()
         # definite integral of the density
-        cumul_dens = (timestep * density).cumsum(dim=0)
-        ax1.plot(dt_vals.numpy(), cumul_dens.numpy(),
-                 linestyle='--', linewidth=.7)
-        ax1.set_title('Cdf of the increment')
         return (estimate_dt, next_dt, error_dt), fig
-    return estimate_dt, next_dt, error_dt
+    return estimate_dt, next_dt, error_dt, next_type, estimate_type
