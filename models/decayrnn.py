@@ -4,7 +4,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import PackedSequence
 from typing import Tuple, List
 
-from models.base import SeqGenerator
+from models import base
+import matplotlib.pyplot as plt
 
 
 class HawkesDecayRNN(nn.Module):
@@ -194,7 +195,7 @@ class HawkesDecayRNN(nn.Module):
         return res
 
 
-class HawkesRNNGen(SeqGenerator):
+class HawkesRNNGen(base.SeqGenerator):
     """
     Event sequence generator for the Hawkes Decay-RNN model.
 
@@ -292,45 +293,28 @@ class HawkesRNNGen(SeqGenerator):
 
 
 def read_predict(model: HawkesDecayRNN, sequence, types, lengths, plot: bool = False):
+    process_dim = model.process_dim
     global decay
     length = lengths.item()
-    dt_seq = sequence[1:] - sequence[:-1]
-    dt_seq = dt_seq[:length]
-    hidden = model.init_hidden()
     with torch.no_grad():
+        dt_seq = sequence[1:] - sequence[:-1]
+        dt_seq = dt_seq[:length]
+        h_t = model.init_hidden()
         for i in range(length):
             x = model.embed(types[i]).unsqueeze(-1)
-            concat = torch.cat((x, hidden), dim=1)
+            concat = torch.cat((x, h_t), dim=1)
             decay = model.decay_layer(concat)
-            hidden = model.rnn_layer(x, hidden)
+            h_t = model.rnn_layer(x, h_t)
             if i < length-1:
-                hidden = hidden*torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
+                h_t = h_t*torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
         last_t = sequence[i]
         next_t = sequence[i+1]
-        real_dt = dt_seq[i]
+        next_type = types[i+1]
+        next_dt = dt_seq[i]
         # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
         #       .format(last_t.item(), next_t.item(), real_dt.item()))
-        n_samples = 40000
+        n_samples = 1000
         hmax = 40
         timestep = hmax/n_samples
         dt_vals = torch.linspace(0, hmax, n_samples+1)
-        h_t_vals = hidden*torch.exp(-decay*dt_vals[:, None])
-        intens_t_vals = model.intensity_layer(h_t_vals).sum(dim=1)
-        integral_ = torch.cumsum(timestep*intens_t_vals, dim=0)
-        density = intens_t_vals * torch.exp(-integral_)
-        t_pit = dt_vals * density
-        # trapeze method
-        estimate = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
-        if plot:
-            import matplotlib.pyplot as plt
-            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(9,4), dpi=100)
-            ax0.plot(dt_vals.numpy(), density.numpy(),
-                     linestyle='--', linewidth=.7)
-            ax0.set_title("probability density $p_i(u)$\nof the next increment")
-            # definite integral of the density
-            cumul_dens = (timestep*density).cumsum(dim=0)
-            ax1.plot(dt_vals.numpy(), cumul_dens.numpy(),
-                     linestyle='--', linewidth=.7)
-            ax1.set_title('Cdf of the increment')
-        error = (estimate - real_dt)**2
-        return estimate, real_dt, error
+        return base.predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)
