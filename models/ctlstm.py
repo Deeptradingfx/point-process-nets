@@ -369,7 +369,7 @@ def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths, plot: bool
         dt_seq = dt_seq[:length]
         h_t, c_t, c_target = model.init_hidden()
         for i in range(length):
-            x = model.embed(seq_types[i]).unsqueeze(-1)
+            x = model.embed(seq_types[i]).unsqueeze(0)
             c_t, c_target, output, decay = model.lstm_cell(x, h_t, c_t, c_target)
             if i < length-1:
                 c_t = c_t*torch.exp(-decay * dt_seq[i, None])  # decay the cell state
