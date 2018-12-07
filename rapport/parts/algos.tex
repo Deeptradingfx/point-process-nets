@@ -29,6 +29,10 @@ et on a l'expression de l'estimateur:
 \begin{equation}\label{eq:nextEventTimeEstimator}
 	\hat{t}_i = t_{i-1} + \int_0^\infty u p_i(u)\,du.
 \end{equation}
+Pour le type $k_i$, on utilise l'estimateur
+\begin{equation}
+\hat{k}_i = \argmax_{k} \EE\left[\frac{\lambda^{k}_{t_i}}{\bar\lambda_{t_i}}\middle| \mathcal{F}_{t_{i-1}} \right] = \argmax_k \int_0^\infty \frac{\lambda^{k_i}_{t_{i-1}+u}}{\bar\lambda_{t_{i-1}+u}} p_i(u)\,du.
+\end{equation}
 
 La \autoref{fig:probDensityPlot2DLSTM} illustre cette densité de probabilité et le choix de l'estimation $\hat{t}_i$ dans le cas du modèle LSTM avec $K=2$.
 

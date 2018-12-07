@@ -80,7 +80,7 @@ class SeqGenerator:
         return fig
 
 
-def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
+def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info: bool = False):
     process_dim = model.process_dim
     model.eval()
     n_samples = 1000
@@ -99,7 +99,8 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     # trapeze method
     estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
     estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum(dim=0)
-    print("type probabilities:", estimate_type_prob)
+    if print_info:
+        print("type probabilities:", estimate_type_prob)
     estimate_type = torch.argmax(estimate_type_prob)
     error_dt = (estimate_dt - next_dt) ** 2
     if plot:
