@@ -84,7 +84,7 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     process_dim = model.process_dim
     model.eval()
     n_samples = 1000
-    hmax = 40
+    hmax = 50
     timestep = hmax / n_samples
     dt_vals = torch.linspace(0, hmax, n_samples + 1)
     h_t_vals = h_t * torch.exp(-decay * dt_vals[:, None])
@@ -98,7 +98,8 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot):
     prob_type = ratio * density[:, None]  # integrand for the types
     # trapeze method
     estimate_dt = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
-    estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum()
+    estimate_type_prob = (timestep * 0.5 * (prob_type[1:] + prob_type[:-1])).sum(dim=0)
+    print("type probabilities:", estimate_type_prob)
     estimate_type = torch.argmax(estimate_type_prob)
     error_dt = (estimate_dt - next_dt) ** 2
     if plot:
