@@ -361,7 +361,8 @@ class HawkesLSTMGen(SeqGenerator):
         return res
 
 
-def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths, plot: bool = False):
+def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths,
+                 plot: bool = False, print_info: bool = False):
     process_dim = model.process_dim
     length = seq_lengths.item()
     with torch.no_grad():
@@ -376,6 +377,12 @@ def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths, plot: bool
                 h_t = output * torch.tanh(c_t)
         last_t = sequence[i]
         next_t = sequence[i+1]
+        last_type = seq_types[i]
         next_type = seq_types[i+1]
         next_dt = dt_seq[i]
-        return predict_from_hidden(model, h_t, decay, next_dt, next_type, plot)
+        if print_info:
+            print("last event: time {:.3f} type {:.3f}"
+                  .format(last_t.item(), last_type.item()))
+            print("next event: time {:.3f} type {:.3f}, in {:.3f}"
+                  .format(next_t.item(), next_type.item(), next_dt.item()))
+        return predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info)
