@@ -359,3 +359,50 @@ class HawkesLSTMGen(SeqGenerator):
         # compute the intensity using the Softplus inside the intensity layer of the model
         res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
+
+
+def read_predict(model: HawkesLSTM, sequence, types, lengths, plot: bool = False):
+    global decay
+    length = lengths.item()
+    dt_seq = sequence[1:] - sequence[:-1]
+    dt_seq = dt_seq[:length]
+    h0, c0, _ = model.init_hidden()
+    h_t = h0
+    c_t = c0
+    c_target = c0
+    with torch.no_grad():
+        for i in range(length):
+            x = model.embed(types[i]).unsqueeze(-1)
+            c_t, c_target, output, decay = model.lstm_cell(x, h_t, c_t, c_target)
+            if i < length-1:
+                c_t = c_t*torch.exp(-decay * dt_seq[i, None])  # decay the cell state
+                h_t = output * torch.tanh(c_t)
+        last_t = sequence[i]
+        next_t = sequence[i+1]
+        real_dt = dt_seq[i]
+        # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
+        #       .format(last_t.item(), next_t.item(), real_dt.item()))
+        n_samples = 40000
+        hmax = 40
+        timestep = hmax/n_samples
+        dt_vals = torch.linspace(0, hmax, n_samples+1)
+        h_t_vals = h_t*torch.exp(-decay*dt_vals[:, None])
+        intens_t_vals = model.intensity_layer(h_t_vals).sum(dim=1)
+        integral_ = torch.cumsum(timestep*intens_t_vals, dim=0)
+        density = intens_t_vals * torch.exp(-integral_)
+        t_pit = dt_vals * density
+        # trapeze method
+        estimate = (timestep * 0.5 * (t_pit[1:] + t_pit[:-1])).sum()
+        if plot:
+            import matplotlib.pyplot as plt
+            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(9,4), dpi=100)
+            ax0.plot(dt_vals.numpy(), density.numpy(),
+                     linestyle='--', linewidth=.7)
+            ax0.set_title("probability density $p_i(u)$\nof the next increment")
+            # definite integral of the density
+            cumul_dens = (timestep*density).cumsum(dim=0)
+            ax1.plot(dt_vals.numpy(), cumul_dens.numpy(),
+                     linestyle='--', linewidth=.7)
+            ax1.set_title('Cdf of the increment')
+        error = (estimate - real_dt)**2
+        return estimate, real_dt, error

@@ -25,6 +25,9 @@ class SeqGenerator:
         self.intens_hist = []
         self._plot_times = []
 
+    def generate_sequence(self, tmax: float, record_intensity: bool):
+        raise NotImplementedError
+
     def plot_events_and_intensity(self, model_name: str = None, debug=False):
         import matplotlib.pyplot as plt
         gen_seq_times = self.event_times
