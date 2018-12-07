@@ -38,6 +38,7 @@ Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles De
 	\caption{Distributions des nombres d'événements pour les modèles Decay-RNN et LSTM entraînés sur le jeu de données synthétiques 1D.}\label{fig:1DlengthDistrib}
 \end{figure}
 
+Un autre critère d'évaluation que nous utilisons est l'erreur de prédiction sur les données de test, à la fois pour le temps d'arrivée du prochain événement et l'erreur sur son type (voir \autoref{fig:rmseSynthData}). Les résultats nous suggèrent que le LSTM souffrirait d'un problème de sur-ajustement.
 
 \begin{figure}[ht]
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden64_20181206-234848.pdf}
@@ -46,8 +47,17 @@ Des histogrammes des nombre d'événements entre $0$ et $T$ pour les modèles De
 
 \begin{figure}
 	\centering
-	\includegraphics[width=0.6\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
-	\caption{RMSE, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=1$.}\label{fig:rmse1DhawkesData}
+	\begin{subfigure}{0.47\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
+		\caption{RMSE, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=1$, $D=64$.}\label{fig:rmse1DhawkesData}	
+	\end{subfigure}
+	\begin{subfigure}{0.47\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{../results/1D_Hawkes_Data_RMSE.pdf}
+		\caption{RMSE et précision de prédiction du type $k_i$, modèles Decay-RNN et LSTM. Données synthétiques Hawkes, $K=2$, $D=64$.}\label{fig:rmse2DhawkesData}	
+	\end{subfigure}
+	\caption{Erreur quadratique de prédiction pour les modèles Decay-RNN et LSTM.}\label{fig:rmseSynthData}
 \end{figure}
 
 La fonction de perte du modèle RMTPP ne semble pas converger au cours de son entrainement \autoref{fig:loss}.

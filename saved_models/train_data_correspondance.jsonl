@@ -8,3 +8,4 @@
 {"model_path": "saved_models/HawkesLSTM-2d_hidden64-20181207-200527.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-194103.pkl"}
 {"model_path": "saved_models/HawkesLSTM-2d_hidden64-20181207-210843.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-194103.pkl"}
 {"model_path": "saved_models/HawkesDecayRNN-2d_hidden64-20181207-231829.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
+{"model_path": "saved_models/HawkesLSTM-2d_hidden64-20181207-232335.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
