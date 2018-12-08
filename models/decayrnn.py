@@ -82,7 +82,7 @@ class HawkesDecayRNN(nn.Module):
 
             x = self.embed(types_sub_batch)
             concat = torch.cat((x, h_t), dim=1)
-            # Decay value for the next interval, predicted from the decayed hidden state
+            # Decay for the next interval, predicted from the decayed hidden state
             decay = self.decay_layer(concat)
             # New hidden state h(t_i+)
             hidden = self.rnn_layer(x, h_t)  # shape batch * hidden_size
