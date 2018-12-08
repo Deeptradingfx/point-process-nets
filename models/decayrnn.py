@@ -171,9 +171,8 @@ class HawkesDecayRNN(nn.Module):
         log_intensities = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        # seq_mask = seq_onehot_types[:, :-1]
-        # intens_ev_times_filtered = (log_intensities * seq_mask).sum(dim=2)
-        intens_ev_times_filtered = log_intensities.sum(dim=2)
+        seq_mask = seq_onehot_types[:, :-1]
+        intens_ev_times_filtered = (log_intensities * seq_mask).sum(dim=2)
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)
