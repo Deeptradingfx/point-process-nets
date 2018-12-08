@@ -163,7 +163,7 @@ class HawkesDecayRNN(nn.Module):
         device = seq_times.device
         intens_at_evs: Tensor = [
             self.intensity_layer(hiddens_decayed[i])
-            for i in range(1, n_times)  # do not count the 0-th or End-of-sequence events
+            for i in range(n_times)  # do not count the 0-th or End-of-sequence events
         ]  # intensities just before the events occur
         # shape batch * N * input_dim
         intens_at_evs = nn.utils.rnn.pad_sequence(
@@ -171,7 +171,8 @@ class HawkesDecayRNN(nn.Module):
         log_intensities = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        intens_ev_times_filtered = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=2)
+        seq_mask = seq_onehot_types[:, :-1]
+        intens_ev_times_filtered = (log_intensities * seq_mask).sum(dim=2)
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
         # shape (batch_size,)

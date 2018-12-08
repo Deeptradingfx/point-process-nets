@@ -13,8 +13,12 @@ __*.tex
 *.bbl
 *.bcf
 *.blg
+*.nav
+*.snm
+*.toc
 out/*.pdf
 rapport/*.pdf
+soutenance/*.pdf
 *.xdv
 
 !biblio/*.pdf

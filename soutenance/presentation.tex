@@ -1,0 +1,145 @@
+% !TeX spellcheck = fr_FR
+\documentclass{beamer}
+\usetheme{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\metroset{
+	sectionpage=none,
+	progressbar=frametitle
+}
+
+\setbeamercolor{background canvas}{bg=white}
+
+\usepackage{polyglossia}
+\setdefaultlanguage{french}
+\usepackage{mathtools,amsfonts,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\usepackage{csquotes}
+\usepackage[
+	backend=biber,
+	style=alphabetic,
+	sorting=nyt
+]{biblatex}
+\addbibresource{../rapport/references.bib}
+
+\usepackage{dsfont}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\ZZ}{\mathbb{Z}}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+
+\DeclareMathOperator*{\argmax}{argmax} % no space, limits underneath in displays
+
+\title{
+	\textit{Processus ponctuels et réseaux de neurones récurrents}
+}
+\subtitle{Soutenance}
+\author{
+	Cheikh Fall\\
+	Wilson Jallet
+}
+
+\date{11 décembre 2018}
+
+\begin{document}
+\maketitle
+
+\begin{frame}{Introduction}
+Beaucoup de phénomènes se manifestent par des événements ponctuels.
+\end{frame}
+
+\section{Modèles}
+
+\begin{frame}{Le modèle classique: Hawkes (\citeyear{hawkes1971})}
+\citeauthor{hawkes1971} introduit un modèle de processus ponctuel auto-excité
+\begin{equation}
+\lambda_t =
+\underbrace{\mu_t}_{\substack{\text{intensité}\\\text{exogène}}} + \int_0^t \underbrace{g(t-s)}_{\text{noyau}}\cdot\, dN_s
+\end{equation}
+\end{frame}
+
+
+\begin{frame}{Modélisation par réseau de neurones récurrent}
+Le postulat de base:
+\begin{equation}
+\lambda_t = f(t\mid \mathcal{F}_t)
+\end{equation}
+avec $f(\,\cdot\,\mid \mathcal{F_{.}})$ un réseau de neurones récurrent.\pause
+
+\noindent\textbf{Problème} \begin{itemize}
+	\item Processus ponctuel en temps continu $\rightarrow$ RNN en temps continu.
+	\item Choix de $f$? Comment dépendre des paramètres du réseau?
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Modèle LSTM \autocite{meiEisnerNeuralHawkes}}
+\textbf{Idée:} \citeauthor{meiEisnerNeuralHawkes} proposent de choisir 
+\begin{equation}
+\lambda_t = f(W_\ell h(t))
+\end{equation}
+avec $h\in\RR^D, D\in\NN^*$ le \textit{hidden state}. Le temps continu est pris en compte par amortissement.
+\begin{equation}\label{eq:meiEisnerHiddenStates}
+\begin{aligned}
+	h(t) &= o_i \odot \tanh(c(t)) \\
+	c(t) &= \bar{c}_i + (c_i - \bar{c}_i)e^{-\delta_i(t - t_{i-1})}
+\end{aligned} \quad t\in(t_{i-1}, t_i]
+\end{equation}
+\end{frame}
+
+\begin{frame}
+L'\textit{output} $o_i$, le \textit{cell state} initial $c_i$ en $t_{i-1}$ et sa valeur asymptotique $\overline{c}_i$ suivent les équations d'un réseau LSTM classique.
+
+\textbf{Entrées du LSTM:} Pour mettre à jour les paramètres après l'événement $(t_i,k_i)$:\begin{itemize}
+	\item[\textbullet] Embedding $x_i\in\RR^K$ du type d'événement
+	\item[\textbullet] \textit{Hidden state} $h(t_{i})$ en $t_{i}^{-}$
+	\item[\textbullet] \textit{Cell state} $c(t_{i})$ en $t_i^{-}$ (pour calculer $c_{i+1} = c(t_i^{+})$)
+	\item[\textbullet] \textit{Cell state} asymptotique $\bar{c}_i$ (pour calculer $\bar{c}_{i+1}$)
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Variante simplifiée (RNN)}
+Une version plus simple avec moins de paramètres du modèle \eqref{eq:meiEisnerHiddenStates}:
+\begin{equation}
+	h(t) = h_i e^{-\delta_i (t - t_{i-1})}
+	\quad t\in (t_{i-1}, t_i]
+\end{equation}
+où $h_i = h(t_i^{+})$ est calculé en appliquant un réseau RNN simple à l'entrée $(x_i, h(t_i))$.
+
+\end{frame}
+
+\begin{frame}
+Ces modèles ont les bonnes propriétés: $(c,h)$, puis $(\lambda_t)$, sont $(\mathcal{F}_t)$-adaptés.
+\end{frame}
+
+\begin{frame}
+En théorie, les deux modèles peuvent reproduire les comportement de modèles plus classiques (e.g. Hawkes).
+
+\begin{figure}
+	\includegraphics[width=\linewidth]{../notebooks/example_rnnplot.pdf}
+	\caption{Un comportement généré par un modèle RNN <<~à froid~>> (sans entraînement).}\label{fig:untrained1DRNNIntensity}
+\end{figure}
+	
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_1d_hidden64_20181206-234848.pdf}
+	\caption{}
+\end{figure}
+\end{frame}
+
+\begin{frame}[t,allowframebreaks]{References}
+	\printbibliography
+\end{frame}
+
+\end{document}
