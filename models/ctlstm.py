@@ -26,7 +26,7 @@ class HawkesLSTMCell(nn.Module):
         # Cell decay factor, identical for all hidden dims
         self.decay_layer = nn.Sequential(
             nn.Linear(input_dim + hidden_size, hidden_size),
-            nn.Softplus(beta=2.))
+            nn.Softplus(beta=10.))
 
     def forward(self, x, h_t, c_t, c_target) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """
@@ -83,7 +83,7 @@ class HawkesLSTM(nn.Module):
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, intens_bias),
-            nn.Softplus(beta=2.))
+            nn.Softplus(beta=5.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """
