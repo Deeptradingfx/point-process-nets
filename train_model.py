@@ -18,39 +18,40 @@ DEFAULT_BATCH_SIZE = 24
 DEFAULT_HIDDEN_SIZE = 12
 DEFAULT_LEARN_RATE = 0.02
 
+parser = argparse.ArgumentParser(description="Train the model.")
+parser.add_argument('-e', '--epochs', type=int, required=True,
+                    help='number of epochs.')
+parser.add_argument('-d', '--dim', type=int, required=True,
+                    help='number of event types.')
+parser.add_argument('-b', '--batch', type=int,
+                    dest='batch_size', default=DEFAULT_BATCH_SIZE,
+                    help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
+parser.add_argument('--lr', default=DEFAULT_LEARN_RATE, type=float,
+                    help="set the optimizer learning rate. (default {})".format(DEFAULT_LEARN_RATE))
+parser.add_argument('--hidden', type=int,
+                    dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
+                    help='number of hidden units. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
+parser.add_argument('--train-size', type=int,
+                    help='override the size of the training dataset.')
+parser.add_argument('--log-dir', type=str,
+                    dest='log_dir', default='logs',
+                    help="training logs target directory.")
+parser.add_argument('--no-save', dest='save', action='store_false',
+                    help="do not save the model state dict and loss history.")
+parser.add_argument('--cuda', dest='use_cuda', action='store_true',
+                    help="whether or not to use GPU.")
+parser.add_argument('--bias', action='store_true',
+                    help="use bias on the activation (intensity) layer.")
+parser.add_argument('-m', '--model', required=True,
+                    type=str, choices=['rnn', 'lstm'],
+                    help='choose which model to train.')
+
+args = parser.parse_args()
+USE_CUDA = args.use_cuda
+
+SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train the model.")
-    parser.add_argument('-e', '--epochs', type=int, required=True,
-                        help='number of epochs.')
-    parser.add_argument('-d', '--dim', type=int, required=True,
-                        help='number of event types.')
-    parser.add_argument('-b', '--batch', type=int,
-                        dest='batch_size', default=DEFAULT_BATCH_SIZE,
-                        help='batch size. (default: {})'.format(DEFAULT_BATCH_SIZE))
-    parser.add_argument('--lr', default=DEFAULT_LEARN_RATE, type=float,
-                        help="set the optimizer learning rate. (default {})".format(DEFAULT_LEARN_RATE))
-    parser.add_argument('--hidden', type=int,
-                        dest='hidden_size', default=DEFAULT_HIDDEN_SIZE,
-                        help='number of hidden units. (default: {})'.format(DEFAULT_HIDDEN_SIZE))
-    parser.add_argument('--train-size', type=int,
-                        help='override the size of the training dataset.')
-    parser.add_argument('--log-dir', type=str,
-                        dest='log_dir', default='logs',
-                        help="training logs target directory.")
-    parser.add_argument('--no-save', dest='save', action='store_false',
-                        help="do not save the model state dict and loss history.")
-    parser.add_argument('--cuda', dest='use_cuda', action='store_true',
-                        help="whether or not to use GPU.")
-    parser.add_argument('--bias', action='store_true',
-                        help="use bias on the activation (intensity) layer.")
-    parser.add_argument('-m', '--model', required=True,
-                        type=str, choices=['rnn', 'lstm'],
-                        help='choose which model to train.')
-
-    args = parser.parse_args()
-    USE_CUDA = args.use_cuda
-
-    SYNTH_DATA_FILES = glob.glob("data/simulated/*.pkl")
     print("Available files:")
     for i, s in enumerate(SYNTH_DATA_FILES):
         print("{:<8}{:<8}".format(i, s))

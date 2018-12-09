@@ -130,7 +130,7 @@ class HawkesDecayRNN(nn.Module):
         return lbda_t
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens: List[Tensor],
-                     hiddens_decayed: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
+                     hiddens_ti: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
         """
         Negative log-likelihood
 
@@ -148,7 +148,7 @@ class HawkesDecayRNN(nn.Module):
             batch_sizes: batch sizes for each event sequence tensor, by length.
             hiddens:
                 Shape: batch * (N + 1) * hidden_size
-            hiddens_decayed: decayed hidden states.
+            hiddens_ti: decayed hidden states.
                 Shape: batch * (N + 1) * hidden_size
             decays:
                 Shape: batch * (N + 1)
@@ -157,12 +157,14 @@ class HawkesDecayRNN(nn.Module):
         Returns:
 
         """
+        import pdb
+        pdb.set_trace()
         n_batch = seq_times.size(0)
         n_times = len(batch_sizes)
-        dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape N * batch
+        dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape batch * N
         device = seq_times.device
         intens_at_evs: Tensor = [
-            self.intensity_layer(hiddens_decayed[i])
+            self.intensity_layer(hiddens_ti[i])
             for i in range(n_times)  # do not count the 0-th or End-of-sequence events
         ]  # intensities just before the events occur
         # shape batch * N * input_dim
@@ -171,7 +173,7 @@ class HawkesDecayRNN(nn.Module):
         log_intensities = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        seq_mask = seq_onehot_types[:, :-1]
+        seq_mask = seq_onehot_types[:, 1:]  # we must select the type of the event that comes AFTER
         intens_ev_times_filtered = (log_intensities * seq_mask).sum(dim=2)
         # reduce on the type dim. (dropping the 0s in the process), then
         # reduce the log-intensities on seq_times dim.
