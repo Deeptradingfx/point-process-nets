@@ -1,0 +1,28 @@
+[
+    {
+        "model_name": "HawkesDecayRNN",
+        "process_dim": 4,
+        "hidden_size": 128,
+        "data_file": "../data/simulated/hawkes_synthetic_exp_4d_20181209-194229.pkl",
+        "avg_rmse": 5.8846709822708085,
+        "var_mse": 5799.953328290395,
+        "std_rmse": 0.2464009179852345,
+        "pred_score": 0.262,
+        "model_timestamp": "20181209-194808",
+        "train_size": 1200,
+        "test_size": 1000
+    },
+    {
+        "model_name": "HawkesLSTM",
+        "process_dim": 4,
+        "hidden_size": 128,
+        "data_file": "../data/simulated/hawkes_synthetic_exp_4d_20181209-194229.pkl",
+        "avg_rmse": 7.078879478276823,
+        "var_mse": 24561.003052082502,
+        "std_rmse": 0.8674043373479381,
+        "pred_score": 0.281,
+        "model_timestamp": "20181209-194923",
+        "train_size": 1200,
+        "test_size": 1000
+    }
+]

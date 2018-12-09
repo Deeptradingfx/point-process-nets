@@ -231,7 +231,7 @@ class HawkesLSTM(nn.Module):
         res = (- log_sum + integral_).mean()  # mean on batch dim
         return res
 
-    def read_predict(self, sequence, seq_types, seq_lengths,
+    def read_predict(self, sequence, seq_types, seq_lengths, hmax: float = 40,
                      plot: bool = False, print_info: bool = False):
         process_dim = self.process_dim
         length = seq_lengths.item()
@@ -255,7 +255,7 @@ class HawkesLSTM(nn.Module):
                       .format(last_t.item(), last_type.item()))
                 print("next event: time {:.3f} type {:.3f}, in {:.3f}"
                       .format(next_t.item(), next_type.item(), next_dt.item()))
-            return predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, print_info)
+            return predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, hmax, print_info)
 
 
 class HawkesLSTMGen(SeqGenerator):
