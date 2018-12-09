@@ -1,0 +1,15 @@
+[
+    {
+        "model_name": "HawkesDecayRNN",
+        "process_dim": 2,
+        "hidden_size": 128,
+        "data_file": "../data/simulated/hawkes_synthetic_exp_2d_20181209-211556.pkl",
+        "avg_rmse": 2.368276918219415,
+        "var_mse": 205.8874805893908,
+        "std_rmse": 0.021733890049499254,
+        "pred_score": 0.765,
+        "model_timestamp": "20181209-212603",
+        "train_size": 1200,
+        "test_size": 1000
+    }
+]

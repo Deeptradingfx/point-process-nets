@@ -67,7 +67,7 @@ class SeqGenerator:
                 # label = "type {} event".format(k)
             ax.scatter(evt_times[mask], y, s=9, zorder=5,
                        alpha=0.8)
-            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.3, linestyles='-', alpha=0.8)
+            ax.vlines(evt_times[mask], ylims[0], ylims[1], linewidth=0.2, linestyles='-', alpha=0.5)
 
         # Useful for debugging the sampling for the intensity curve.
         if debug:
@@ -122,7 +122,6 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, hmax: float
                    label=r'true $t_i - t_{i-1}$')
         ax0.set_ylim(ylims)
         ax0.legend()
-
         ax1.plot(dt_vals.numpy(), intens_t_vals_sum.numpy(),
                  linestyle='-', linewidth=.7, label=r'total intensity $\bar\lambda$')
         for k in range(process_dim):

@@ -12,6 +12,7 @@ def generate_multiple_sequences(generator: SeqGenerator, tmax: float, n_gen_seq:
         tmax: end time for the simulations
         n_gen_seq: number of samples to take
     """
+    print("tmax:", tmax)
     # Build a statistic for the no. of events
     gen_seq_lengths = []
     gen_seq_types_lengths = []

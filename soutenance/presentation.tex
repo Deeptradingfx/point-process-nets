@@ -115,8 +115,6 @@ avec $h\in\RR^D, D\in\NN^*$ le \textit{hidden state}. Le temps continu est pris 
 \end{frame}
 
 \begin{frame}
-L'\textit{output} $o_i$, le \textit{cell state} initial $c_i$ en $t_{i-1}$ et sa valeur asymptotique $\overline{c}_i$ suivent les équations d'un réseau LSTM classique.
-
 \textbf{Entrées du LSTM:} Pour mettre à jour les paramètres après l'événement $(t_i,k_i)$:\begin{itemize}
 	\item[\textbullet] Embedding $x_i\in\RR^K$ du type d'événement
 	\item[\textbullet] \textit{Hidden state} $h(t_{i})$ en $t_{i}^{-}$
@@ -126,7 +124,7 @@ L'\textit{output} $o_i$, le \textit{cell state} initial $c_i$ en $t_{i-1}$ et sa
 \end{frame}
 
 
-\begin{frame}{Variante simplifiée (RNN)}
+\begin{frame}{Variante simplifiée (Decay-RNN)}
 Une version plus simple avec moins de paramètres du modèle \eqref{eq:meiEisnerHiddenStates}:
 \begin{equation}
 	h(t) = h_i e^{-\delta_i (t - t_{i-1})}
@@ -217,7 +215,7 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \begin{figure}
 	\begin{subfigure}{\linewidth}
 		\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_2d_hidden128_20181209-132014.pdf}
-		\caption{Intensité et événements générés par un RNN calibré sur le Hawkes bivarié.}
+		\caption{Intensité et événements générés par le Decay-RNN calibré sur le Hawkes bivarié.}
 	\end{subfigure}
 	\caption{Intensité apprise par le réseau RNN.}
 \end{figure}
@@ -242,12 +240,18 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 
 \begin{frame}
 \begin{figure}
-	\begin{subfigure}{0.8\linewidth}
+	\begin{subfigure}{\linewidth}
 		\includegraphics[width=\linewidth]{../notebooks/decayrnn_2d_prediction_graphs_hidden128_NEW.pdf}
 		\caption{Le processus de Hawkes sous-jacent est symétrique: pour le prochain événement, les types sont équiprobables.}
 	\end{subfigure}
-	\begin{subfigure}{0.8\linewidth}
-		\includegraphics[width=\linewidth]{../notebooks/decayrnn_2d_prediction_graphs.pdf}
+	\caption{Loi du temps du prochain événement, et intensités $(\lambda^i_t)_{t\geq t_{i-1}}$ de chaque type.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}\ContinuedFloat
+	\begin{subfigure}{\linewidth}
+		\includegraphics[width=\linewidth]{../notebooks/decayrnn_2d_prediction_graphs_OLD.pdf}
 		\caption{Avec la faute de calcul. Le type du prochain événement est certainement celui du dernier.}
 	\end{subfigure}
 \end{figure}
@@ -269,6 +273,19 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \end{figure}
 \end{frame}
 
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_2d_hidden128_20181209-212603.pdf}
+	\caption{Trajectoire générée par le Decay-RNN calibré sur le processus asymétrique.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesLSTM_2d_hidden128_20181209-214506.pdf}
+	\caption{Trajectoire générée par le LSTM.}
+\end{figure}
+\end{frame}
 
 \section{Conclusion}
 
