@@ -1,0 +1,124 @@
+% !TeX spellcheck = fr_FR
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+\section{Modèles}
+
+\begin{frame}{Modélisation: Processus ponctuels}
+Des événements $(t_i, k_i)$ de différents types $k_i\in\llbracket 1, K\rrbracket$ arrivant  aux $t_i$.\pause
+
+Le modèle de \textbf{processus ponctuel}:
+\begin{itemize}
+	\item[\textbullet] Décompte d'événements $N = (N_t)$ arrivés entre $0$ et $t$ à des instants $t_i$.
+	\item[\textbullet] Associé à une \textit{intensité} $\lambda_t$ telle que
+	\[
+	\EE[dN_t\mid \mathcal{F}_t] = \lambda_t\,dt
+	\]\pause
+	$\rightarrow$ L'intensité contrôle le flux d'événements.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Le modèle classique: \parencite{hawkes1971}}
+\citeauthor{hawkes1971} introduit un modèle de processus ponctuel auto-excité
+\begin{equation}
+	\lambda_t =
+	\underbrace{\mu_t}_{\substack{\text{intensité}\\\text{exogène}}} + \int_0^t \underbrace{g(t-s)}_{\text{noyau}\geq 0}\cdot\, dN_s
+\end{equation}
+\end{frame}
+
+
+\begin{frame}{Modélisation par réseaux de neurones récurrents}
+Le postulat de base:
+\begin{equation}
+	\lambda_t = f(t\mid \mathcal{F}_t),\quad t \geq 0
+\end{equation}
+avec $f(\,\cdot \mid \mathcal{F_{.}})$ un réseau de neurones récurrent.\pause
+
+\noindent\textbf{Problème} \begin{itemize}
+\item Processus ponctuel en temps continu $\rightarrow$ RNN en temps continu ?
+\item Choix de $f$? Comment dépendre des paramètres du réseau?
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Modèle LSTM \parencite{meiEisnerNeuralHawkes}}
+\textbf{Idée:} \citeauthor{meiEisnerNeuralHawkes} proposent de choisir 
+\begin{equation}
+\lambda_t = f(W_\ell h(t))
+\end{equation}
+avec $h\in\RR^D, D\in\NN^*$ le \textit{hidden state}. \autocite{meiEisnerNeuralHawkes}
+
+Le temps continu est pris en compte par amortissement
+\begin{equation}\label{eq:meiEisnerHiddenStates}
+	\begin{aligned}
+	h(t) &= o_i \odot \tanh(c(t)) \\
+	c(t) &= \bar{c}_i + (c_i - \bar{c}_i)e^{-\delta_i(t - t_{i-1})}
+	\end{aligned} \quad t\in(t_{i-1}, t_i]
+\end{equation}
+\end{frame}
+
+\begin{frame}
+\textbf{Entrées du LSTM:} Pour mettre à jour les paramètres après l'événement $(t_i,k_i)$:\begin{itemize}
+	\item[\textbullet] Embedding $x_i\in\RR^K$ du type d'événement
+	\item[\textbullet] \textit{Hidden state} $h(t_{i})$ en $t_{i}^{-}$
+	\item[\textbullet] \textit{Cell state} $c(t_{i})$ en $t_i^{-}$ (pour calculer $c_{i+1} = c(t_i^{+})$)
+	\item[\textbullet] \textit{Cell state} asymptotique $\bar{c}_i$ (pour calculer $\bar{c}_{i+1}$)
+\end{itemize}
+
+\textbf{Sorties}\begin{itemize}
+	\item[\textbullet] Paramètre de décroissance $\delta_{i+1}$
+	\item[\textbullet] \textit{Output} $o_{i+1}$
+	\item[\textbullet] \textit{Cell state} $c_{i+1}$, $\bar{c}_{i+1}$
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Variante simplifiée (Decay-RNN)}
+Une version plus simple avec moins de paramètres du modèle \eqref{eq:meiEisnerHiddenStates}:
+\begin{equation}
+h(t) = h_i e^{-\delta_i (t - t_{i-1})}
+\quad t\in (t_{i-1}, t_i]
+\end{equation}
+où $h_i = h(t_i^{+})$ est calculé en appliquant un réseau RNN d'\citeauthor{elman1990srnn} \cite{elman1990srnn} à l'entrée $(x_i, h(t_i))$.
+
+\end{frame}
+
+\begin{frame}
+Ces modèles ont de bonnes propriétés:
+\begin{itemize}
+	\item[\textbullet] $\lambda \geq 0$
+	\item[\textbullet] $N$, $(c,h)$ et $\lambda$ sont adaptés à $\mathds{F}$
+	\item[\textbullet] $W_\ell h(t)$ est une somme d'exponentielles
+\end{itemize}
+
+
+\end{frame}
+
+\begin{frame}
+Le nombre de paramètres augmente rapidement entre le RNN et le LSTM (\autoref{fig:networkParamNums}).
+
+\begin{table}
+\begin{tabular}{l|cc}\toprule
+	Modèle & $D$ & Nombre de paramètres \\ \midrule
+	LSTM & 32 & 7910 \\
+	RNN & 64 & 8774 \\
+	LSTM & 64 & 30150 \\
+	RNN & 128 & 33926 \\
+	LSTM & 128 & 117638 \\ \bottomrule
+\end{tabular}\caption{Nombre de paramètres en fonction de $D$ ($K=2$).}\label{fig:networkParamNums}
+\end{table}
+
+\end{frame}
+
+\begin{frame}
+En théorie, les deux modèles peuvent reproduire les comportement de modèles plus classiques (e.g. Hawkes).
+
+\begin{figure}
+\includegraphics[width=\linewidth]{../notebooks/example_rnnplot2d_hidden128.pdf}
+\caption{Un comportement généré par un modèle RNN non entraîné (poids aléatoires).}\label{fig:untrained1DRNNIntensity}
+\end{figure}
+
+\end{frame}
+
+\end{document}

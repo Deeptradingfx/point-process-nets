@@ -11,5 +11,18 @@
         "model_timestamp": "20181209-212603",
         "train_size": 1200,
         "test_size": 1000
+    },
+    {
+        "model_name": "HawkesLSTM",
+        "process_dim": 2,
+        "hidden_size": 128,
+        "data_file": "../data/simulated/hawkes_synthetic_exp_2d_20181209-211556.pkl",
+        "avg_rmse": 2.398095619115132,
+        "var_mse": 240.16955436466,
+        "std_rmse": 0.02503752899282636,
+        "pred_score": 0.757,
+        "model_timestamp": "20181209-214506",
+        "train_size": 1600,
+        "test_size": 1000
     }
 ]

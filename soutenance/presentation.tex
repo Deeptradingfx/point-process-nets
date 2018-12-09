@@ -1,25 +1,25 @@
 % !TeX spellcheck = fr_FR
 \documentclass{beamer}
-\usetheme{metropolis}
-\usepackage{appendixnumberbeamer}
-
-\metroset{
-	sectionpage=none,
-	progressbar=frametitle
-}
-
 \setbeamercolor{background canvas}{bg=white}
 
+\usetheme{metropolis}
+\metroset{sectionpage=none,progressbar=frametitle}
+
+\usepackage{appendixnumberbeamer}
 \usepackage{polyglossia}
 \setdefaultlanguage{french}
 \usepackage{mathtools,amsfonts,amssymb}
 \usepackage{booktabs}
 \usepackage{enumitem}
 
+\usepackage{subfiles}
+
 \usepackage{csquotes}
 \usepackage[
 	backend=biber,
-	sorting=nyt
+	sorting=nyt,
+	style=authoryear,
+	citestyle=authoryear
 ]{biblatex}
 \addbibresource{../rapport/references.bib}
 
@@ -60,107 +60,7 @@ Beaucoup de phénomènes se manifestent par des événements ponctuels.\pause
 L'arrivée de certains événements peut favoriser l'arrivée d'autres dans le futur.
 \end{frame}
 
-\section{Modèles}
-
-\begin{frame}{Modélisation: Processus ponctuels}
-Des événements $(t_i, k_i)$ de différents types $k_i\in\llbracket 1, K\rrbracket$ arrivant  aux $t_i$.\pause
-
-Le modèle de \textbf{processus ponctuel}:
-\begin{itemize}
-	\item[\textbullet] Décompte d'événements $N = (N_t)$ arrivés entre $0$ et $t$ à des instants $t_i$.
-	\item[\textbullet] Associé à une \textit{intensité} $\lambda_t$ telle que
-	\[
-		\EE[dN_t\mid \mathcal{F}_t] = \lambda_t\,dt
-	\]\pause
-	$\rightarrow$ L'intensité contrôle le flux d'événements.
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}{Le modèle classique: Hawkes (\citeyear{hawkes1971})}
-\citeauthor{hawkes1971} \cite{hawkes1971} introduit un modèle de processus ponctuel auto-excité
-\begin{equation}
-\lambda_t =
-\underbrace{\mu_t}_{\substack{\text{intensité}\\\text{exogène}}} + \int_0^t \underbrace{g(t-s)}_{\text{noyau}\geq 0}\cdot\, dN_s
-\end{equation}
-\end{frame}
-
-
-\begin{frame}{Modélisation par réseaux de neurones récurrents}
-Le postulat de base:
-\begin{equation}
-\lambda_t = f(t\mid \mathcal{F}_t),\quad t \geq 0
-\end{equation}
-avec $f(\,\cdot \mid \mathcal{F_{.}})$ un réseau de neurones récurrent.\pause
-
-\noindent\textbf{Problème} \begin{itemize}
-	\item Processus ponctuel en temps continu $\rightarrow$ RNN en temps continu ?
-	\item Choix de $f$? Comment dépendre des paramètres du réseau?
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}{Modèle LSTM \autocite{meiEisnerNeuralHawkes}}
-\textbf{Idée:} \citeauthor{meiEisnerNeuralHawkes} proposent de choisir 
-\begin{equation}
-\lambda_t = f(W_\ell h(t))
-\end{equation}
-avec $h\in\RR^D, D\in\NN^*$ le \textit{hidden state}. Le temps continu est pris en compte par amortissement.
-\begin{equation}\label{eq:meiEisnerHiddenStates}
-\begin{aligned}
-	h(t) &= o_i \odot \tanh(c(t)) \\
-	c(t) &= \bar{c}_i + (c_i - \bar{c}_i)e^{-\delta_i(t - t_{i-1})}
-\end{aligned} \quad t\in(t_{i-1}, t_i]
-\end{equation}
-\end{frame}
-
-\begin{frame}
-\textbf{Entrées du LSTM:} Pour mettre à jour les paramètres après l'événement $(t_i,k_i)$:\begin{itemize}
-	\item[\textbullet] Embedding $x_i\in\RR^K$ du type d'événement
-	\item[\textbullet] \textit{Hidden state} $h(t_{i})$ en $t_{i}^{-}$
-	\item[\textbullet] \textit{Cell state} $c(t_{i})$ en $t_i^{-}$ (pour calculer $c_{i+1} = c(t_i^{+})$)
-	\item[\textbullet] \textit{Cell state} asymptotique $\bar{c}_i$ (pour calculer $\bar{c}_{i+1}$)
-\end{itemize}
-\end{frame}
-
-
-\begin{frame}{Variante simplifiée (Decay-RNN)}
-Une version plus simple avec moins de paramètres du modèle \eqref{eq:meiEisnerHiddenStates}:
-\begin{equation}
-	h(t) = h_i e^{-\delta_i (t - t_{i-1})}
-	\quad t\in (t_{i-1}, t_i]
-\end{equation}
-où $h_i = h(t_i^{+})$ est calculé en appliquant un réseau RNN simple à l'entrée $(x_i, h(t_i))$.
-
-\end{frame}
-
-\begin{frame}
-Ces modèles ont les bonnes propriétés: $(c,h)$, puis $(\lambda_t)$, sont $(\mathcal{F}_t)$-adaptés.
-
-Le nombre de paramètres augmente rapidement entre le RNN et le LSTM (\autoref{fig:networkParamNums}).
-
-\begin{table}
-	\begin{tabular}{l|cc}\toprule
-	Modèle & $D$ & Nombre de paramètres \\ \midrule
-	LSTM & 32 & 7910 \\
-	RNN & 64 & 8774 \\
-	LSTM & 64 & 30150 \\
-	RNN & 128 & 33926 \\
-	LSTM & 128 & 117638 \\ \bottomrule
-	\end{tabular}\caption{Nombre de paramètres en fonction de la dimension cachée $D$, $K=2$.}\label{fig:networkParamNums}
-\end{table}
-
-\end{frame}
-
-\begin{frame}
-En théorie, les deux modèles peuvent reproduire les comportement de modèles plus classiques (e.g. Hawkes).
-
-\begin{figure}
-	\includegraphics[width=\linewidth]{../notebooks/example_rnnplot2d_hidden128.pdf}
-	\caption{Un comportement généré par un modèle RNN non entraîné (poids aléatoires).}\label{fig:untrained1DRNNIntensity}
-\end{figure}
-	
-\end{frame}
+\subfile{models.tex}
 
 \begin{frame}{Apprentissage}
 Maximiser la fonction de log-vraisemblance
@@ -191,6 +91,8 @@ On donne un début de séquence $(t_1,k_1)\ldots (t_{i-1}, k_{i-1})$ au réseau 
 
 \section{Expériences}
 
+\subsection{Hawkes symétrique}
+
 \begin{frame}{Expériences}
 Dans le rapport $\rightarrow$ difficultés à apprendre des processus au moins multivariés $K\geq 2$.\pause
 
@@ -205,6 +107,7 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \end{frame}
 
 \begin{frame}
+
 \begin{figure}
 	\includegraphics[width=\linewidth]{../results/intensity_baseHawkes2D.pdf}
 	\caption{Intensité du processus de Hawkes, généré avec \texttt{tick}.}
@@ -257,6 +160,8 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \end{figure}
 \end{frame}
 
+\subsection{Hawkes asymétrique}
+
 \begin{frame}
 \textbf{Expérience 2} Processus de Hawkes asymétrique, $T = 1800$
 \begin{itemize}
@@ -276,7 +181,7 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \begin{frame}
 \begin{figure}
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_2d_hidden128_20181209-212603.pdf}
-	\caption{Trajectoire générée par le Decay-RNN calibré sur le processus asymétrique.}
+	\caption{Trajectoire générée par le Decay-RNN calibré sur le processus asymétrique.}	
 \end{figure}
 \end{frame}
 
@@ -284,6 +189,13 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \begin{figure}
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesLSTM_2d_hidden128_20181209-214506.pdf}
 	\caption{Trajectoire générée par le LSTM.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/2D_Hawkes_Asymmetrical_Data_RMSE_20181209-221850.pdf}
+	\caption{Résultats pour la prédiction d'événements, sur les données Hawkes asymétrique.}
 \end{figure}
 \end{frame}
 
