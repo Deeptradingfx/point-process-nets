@@ -40,7 +40,7 @@ class HawkesDecayRNN(nn.Module):
             nn.Softplus(beta=10.0))
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, bias=intens_bias),
-            nn.Softplus(beta=10.0))
+            nn.Softplus(beta=3.0))
 
     def forward(self, dt: PackedSequence, seq_types: PackedSequence,
                 h0: Tensor) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
