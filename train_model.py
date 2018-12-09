@@ -107,6 +107,7 @@ if __name__ == '__main__':
     train_times_tensor = seq_times[:train_size]
     train_seq_types = seq_types[:train_size]
     train_seq_lengths = seq_lengths[:train_size]
+    print("No. of event tokens:", train_seq_lengths.sum())
 
     # Training parameters
     BATCH_SIZE = args.batch_size
