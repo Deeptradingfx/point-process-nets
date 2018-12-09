@@ -83,7 +83,7 @@ class HawkesLSTM(nn.Module):
         # activation for the intensity
         self.intensity_layer = nn.Sequential(
             nn.Linear(hidden_size, self.process_dim, intens_bias),
-            nn.Softplus(beta=5.))
+            nn.Softplus(beta=3.))
 
     def init_hidden(self, batch_size: int = 1, device=None) -> Tuple[Tensor, Tensor, Tensor]:
         """

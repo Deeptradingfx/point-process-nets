@@ -41,6 +41,8 @@ if __name__ == '__main__':
                         help="do not save the model state dict and loss history.")
     parser.add_argument('--cuda', dest='use_cuda', action='store_true',
                         help="whether or not to use GPU.")
+    parser.add_argument('--bias', action='store_true',
+                        help="use bias on the activation (intensity) layer.")
     parser.add_argument('-m', '--model', required=True,
                         type=str, choices=['rnn', 'lstm'],
                         help='choose which model to train.')
