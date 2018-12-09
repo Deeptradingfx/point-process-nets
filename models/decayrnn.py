@@ -183,7 +183,7 @@ class HawkesDecayRNN(nn.Module):
         # seq_times: Tensor = torch.cat((seq_times, tmax*torch.ones_like(seq_times[-1:, :])))
         # dt_sequence = seq_times[1:] - seq_times[:-1]
         n_mc_samples = 10
-        # shape N * batch * M_mc
+        # shape batch * N * M_mc
         taus = torch.rand(n_batch, n_times, n_mc_samples).to(device)
         taus: Tensor = dt_seq.unsqueeze(-1) * taus  # inter-event times samples
         intens_at_samples = []
