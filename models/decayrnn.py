@@ -203,7 +203,7 @@ class HawkesDecayRNN(nn.Module):
         return res
 
     def read_predict(self, seq_times, seq_types, seq_lengths,
-                     plot: bool = False, print_info: bool = False):
+                     hmax: float = 40., plot: bool = False, print_info: bool = False):
         process_dim = self.process_dim
         global decay
         length = seq_lengths.item()
@@ -230,7 +230,8 @@ class HawkesDecayRNN(nn.Module):
                       .format(next_t.item(), next_type.item(), next_dt.item()))
             # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
             #       .format(last_t.item(), next_t.item(), real_dt.item()))
-            return base.predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, print_info)
+            return base.predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, hmax,
+                                            print_info)
 
 
 class HawkesRNNGen(base.SeqGenerator):

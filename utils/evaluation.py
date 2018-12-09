@@ -31,7 +31,8 @@ def generate_multiple_sequences(generator: SeqGenerator, tmax: float, n_gen_seq:
     return gen_seq_lengths, gen_seq_types_lengths
 
 
-def predict_test(model, seq_times, seq_types, seq_lengths, use_jupyter: bool = False):
+def predict_test(model, seq_times, seq_types, seq_lengths,
+                 hmax: float = 40., use_jupyter: bool = False):
     """Run predictions on testing dataset
 
     Args:
@@ -39,6 +40,7 @@ def predict_test(model, seq_times, seq_types, seq_lengths, use_jupyter: bool = F
         seq_types:
         seq_times:
         model:
+        hmax:
         use_jupyter:
 
     Returns:
@@ -59,7 +61,7 @@ def predict_test(model, seq_times, seq_types, seq_lengths, use_jupyter: bool = F
                      seq_types[index_],
                      seq_lengths[index_])
 
-        est, real_dt, err, real_type, est_type = model.read_predict(*_seq_data)
+        est, real_dt, err, real_type, est_type = model.read_predict(*_seq_data, hmax)
         incr_estimates.append(est)
         incr_real.append(real_dt)
         incr_errors.append(err)

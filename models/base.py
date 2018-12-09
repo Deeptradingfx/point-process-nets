@@ -38,7 +38,7 @@ class SeqGenerator:
         evt_times = np.array(gen_seq_times)
         evt_types = np.array(gen_seq_types)
         fig, ax = plt.subplots(1, 1, sharex='all', dpi=100,
-                               figsize=(9, 4))
+                               figsize=(9, 4.5))
         ax: plt.Axes
         inpt_size = self.process_dim
         ax.set_xlabel('Time $t$ (s)')
@@ -80,11 +80,11 @@ class SeqGenerator:
         return fig
 
 
-def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info: bool = False):
+def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, hmax: float = 40.,
+                        print_info: bool = False):
     process_dim = model.process_dim
     model.eval()
     n_samples = 1000
-    hmax = 40
     timestep = hmax / n_samples
     dt_vals = torch.linspace(0, hmax, n_samples + 1)
     h_t_vals = h_t * torch.exp(-decay * dt_vals[:, None])
@@ -93,6 +93,9 @@ def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info:
     integral_ = torch.cumsum(timestep * intens_t_vals_sum, dim=0)
     # density for the time-until-next-event law
     density = intens_t_vals_sum * torch.exp(-integral_)
+    # Check density
+    if print_info:
+        print("sum of density:", (timestep*density).sum())
     t_pit = dt_vals * density  # integrand for the time estimator
     ratio = intens_t_vals / intens_t_vals_sum[:, None]
     prob_type = ratio * density[:, None]  # integrand for the types
