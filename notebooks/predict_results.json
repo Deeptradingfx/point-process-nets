@@ -4,22 +4,21 @@
         "process_dim": 2,
         "hidden_size": 128,
         "data_file": "../data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl",
-        "avg_rmse": 5.2177170513575515,
-        "var_mse": 4524.3645303985195,
-        "std_rmse": 0.2167789325228629,
-        "error_types": 0.526,
-        "model_timestamp": "20181209-132014"
+        "avg_rmse": 4.691359088543132,
+        "var_mse": 2829.4152527480096,
+        "std_rmse": 0.2512966924355482,
+        "pred_score": 0.5433333333333333,
+        "model_timestamp": "20181209-153942"
     },
     {
         "model_name": "HawkesLSTM",
         "process_dim": 2,
         "hidden_size": 128,
         "data_file": "../data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl",
-        "avg_rmse": 5.692733871621391,
-        "var_mse": 7355.487308547297,
-        "std_rmse": 0.32302086635451327,
-        "error_types": 0.503,
-        "model_timestamp": "20181209-132611",
-
+        "avg_rmse": 5.024229850394945,
+        "var_mse": 4844.353941226004,
+        "std_rmse": 0.40174929669778137,
+        "pred_score": 0.5183333333333333,
+        "model_timestamp": "20181209-154233"
     }
 ]

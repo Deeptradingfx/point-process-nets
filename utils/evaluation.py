@@ -1,4 +1,5 @@
 import numpy as np
+import tqdm
 
 from models.base import SeqGenerator
 
@@ -28,3 +29,45 @@ def generate_multiple_sequences(generator: SeqGenerator, tmax: float, n_gen_seq:
     print("Mean generated sequence length: {}".format(gen_seq_lengths.mean()))
     print("Generated sequence length std. dev: {}".format(gen_seq_lengths.std()))
     return gen_seq_lengths, gen_seq_types_lengths
+
+
+def predict_test(model, seq_times, seq_types, seq_lengths, use_jupyter: bool = False):
+    """Run predictions on testing dataset
+
+    Args:
+        seq_lengths:
+        seq_types:
+        seq_times:
+        model:
+        use_jupyter:
+
+    Returns:
+
+    """
+    incr_estimates = []
+    incr_real = []
+    incr_errors = []
+    types_real = []
+    types_estimates = []
+    test_size = seq_times.shape[0]
+    if use_jupyter:
+        index_range_ = tqdm.tnrange(test_size)
+    else:
+        index_range_ = tqdm.trange(test_size)
+    for index_ in index_range_:
+        _seq_data = (seq_times[index_],
+                     seq_types[index_],
+                     seq_lengths[index_])
+
+        est, real_dt, err, real_type, est_type = model.read_predict(*_seq_data)
+        incr_estimates.append(est)
+        incr_real.append(real_dt)
+        incr_errors.append(err)
+        types_real.append(real_type)
+        types_estimates.append(est_type)
+
+    incr_estimates = np.asarray(incr_estimates)
+    incr_errors = np.asarray(incr_errors)
+    types_real = np.asarray(types_real)
+    types_estimates = np.asarray(types_estimates)
+    return incr_estimates, incr_errors, types_real, types_estimates

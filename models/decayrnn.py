@@ -202,6 +202,36 @@ class HawkesDecayRNN(nn.Module):
         res: Tensor = (- log_sum + integral_).mean()  # average over the bath
         return res
 
+    def read_predict(self, seq_times, seq_types, seq_lengths,
+                     plot: bool = False, print_info: bool = False):
+        process_dim = self.process_dim
+        global decay
+        length = seq_lengths.item()
+        with torch.no_grad():
+            dt_seq = seq_times[1:] - seq_times[:-1]
+            dt_seq = dt_seq[:length]
+            h_t = self.init_hidden()
+            for i in range(length):
+                x = self.embed(seq_types[i]).unsqueeze(0)
+                concat = torch.cat((x, h_t), dim=1)
+                decay = self.decay_layer(concat)
+                h_t = self.rnn_layer(x, h_t)
+                if i < length - 1:
+                    h_t = h_t * torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
+            last_t = seq_times[i]
+            next_t = seq_times[i + 1]
+            last_type = seq_types[i]
+            next_type = seq_types[i + 1]
+            next_dt = dt_seq[i]
+            if print_info:
+                print("last event: time {:.3f} type {:.3f}"
+                      .format(last_t.item(), last_type.item()))
+                print("next event: time {:.3f} type {:.3f}, in {:.3f}"
+                      .format(next_t.item(), next_type.item(), next_dt.item()))
+            # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
+            #       .format(last_t.item(), next_t.item(), real_dt.item()))
+            return base.predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, print_info)
+
 
 class HawkesRNNGen(base.SeqGenerator):
     """
@@ -300,32 +330,3 @@ class HawkesRNNGen(base.SeqGenerator):
                     self.intens_hist.append(intens)
 
 
-def read_predict(model: HawkesDecayRNN, seq_times, seq_types, seq_lengths,
-                 plot: bool = False, print_info: bool = False):
-    process_dim = model.process_dim
-    global decay
-    length = seq_lengths.item()
-    with torch.no_grad():
-        dt_seq = seq_times[1:] - seq_times[:-1]
-        dt_seq = dt_seq[:length]
-        h_t = model.init_hidden()
-        for i in range(length):
-            x = model.embed(seq_types[i]).unsqueeze(0)
-            concat = torch.cat((x, h_t), dim=1)
-            decay = model.decay_layer(concat)
-            h_t = model.rnn_layer(x, h_t)
-            if i < length-1:
-                h_t = h_t*torch.exp(-decay * dt_seq[i, None])  # decay the hidden state
-        last_t = seq_times[i]
-        next_t = seq_times[i + 1]
-        last_type = seq_types[i]
-        next_type = seq_types[i + 1]
-        next_dt = dt_seq[i]
-        if print_info:
-            print("last event: time {:.3f} type {:.3f}"
-                  .format(last_t.item(), last_type.item()))
-            print("next event: time {:.3f} type {:.3f}, in {:.3f}"
-                  .format(next_t.item(), next_type.item(), next_dt.item()))
-        # print("last evt time {:.3f},\tnext {:.3f}\tin {:.3f}"
-        #       .format(last_t.item(), next_t.item(), real_dt.item()))
-        return base.predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info)

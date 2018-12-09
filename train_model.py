@@ -145,9 +145,9 @@ if __name__ == '__main__':
         os.makedirs(LOGS_PATH, exist_ok=True)
         # print("Logs directory: {}".format(LOGS_PATH))
         filepath_loss_hist = os.path.join(LOGS_PATH, "log_" + filename_base + ".pkl")
-        print("Saving traning loss log to {}".format(filepath_loss_hist))
-        with open(filepath_loss_hist, 'wb') as f:
-            pickle.dump(loss_hist, f)
+        # print("Saving traning loss log to {}".format(filepath_loss_hist))
+        # with open(filepath_loss_hist, 'wb') as f:
+        #     pickle.dump(loss_hist, f)
 
         try:
             from train_functions import plot_loss

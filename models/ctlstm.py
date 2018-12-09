@@ -231,6 +231,32 @@ class HawkesLSTM(nn.Module):
         res = (- log_sum + integral_).mean()  # mean on batch dim
         return res
 
+    def read_predict(self, sequence, seq_types, seq_lengths,
+                     plot: bool = False, print_info: bool = False):
+        process_dim = self.process_dim
+        length = seq_lengths.item()
+        with torch.no_grad():
+            dt_seq = sequence[1:] - sequence[:-1]
+            dt_seq = dt_seq[:length]
+            h_t, c_t, c_target = self.init_hidden()
+            for i in range(length):
+                x = self.embed(seq_types[i]).unsqueeze(0)
+                c_t, c_target, output, decay = self.lstm_cell(x, h_t, c_t, c_target)
+                if i < length - 1:
+                    c_t = c_t * torch.exp(-decay * dt_seq[i, None])  # decay the cell state
+                    h_t = output * torch.tanh(c_t)
+            last_t = sequence[i]
+            next_t = sequence[i + 1]
+            last_type = seq_types[i]
+            next_type = seq_types[i + 1]
+            next_dt = dt_seq[i]
+            if print_info:
+                print("last event: time {:.3f} type {:.3f}"
+                      .format(last_t.item(), last_type.item()))
+                print("next event: time {:.3f} type {:.3f}, in {:.3f}"
+                      .format(next_t.item(), next_type.item(), next_dt.item()))
+            return predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, print_info)
+
 
 class HawkesLSTMGen(SeqGenerator):
     """
@@ -360,30 +386,3 @@ class HawkesLSTMGen(SeqGenerator):
         # compute the intensity using the Softplus inside the intensity layer of the model
         res: Tensor = self.model.intensity_layer[1](pre_lbda)
         return res
-
-
-def read_predict(model: HawkesLSTM, sequence, seq_types, seq_lengths,
-                 plot: bool = False, print_info: bool = False):
-    process_dim = model.process_dim
-    length = seq_lengths.item()
-    with torch.no_grad():
-        dt_seq = sequence[1:] - sequence[:-1]
-        dt_seq = dt_seq[:length]
-        h_t, c_t, c_target = model.init_hidden()
-        for i in range(length):
-            x = model.embed(seq_types[i]).unsqueeze(0)
-            c_t, c_target, output, decay = model.lstm_cell(x, h_t, c_t, c_target)
-            if i < length-1:
-                c_t = c_t*torch.exp(-decay * dt_seq[i, None])  # decay the cell state
-                h_t = output * torch.tanh(c_t)
-        last_t = sequence[i]
-        next_t = sequence[i+1]
-        last_type = seq_types[i]
-        next_type = seq_types[i+1]
-        next_dt = dt_seq[i]
-        if print_info:
-            print("last event: time {:.3f} type {:.3f}"
-                  .format(last_t.item(), last_type.item()))
-            print("next event: time {:.3f} type {:.3f}, in {:.3f}"
-                  .format(next_t.item(), next_type.item(), next_dt.item()))
-        return predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, print_info)
