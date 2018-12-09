@@ -6,3 +6,4 @@
 {"model_path": "saved_models/HawkesLSTM-2d_hidden128-20181209-132611.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
 {"model_path": "saved_models/HawkesDecayRNN-2d_hidden128-20181209-153942.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
 {"model_path": "saved_models/HawkesLSTM-2d_hidden128-20181209-154233.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
+{"model_path": "saved_models/HawkesLSTM-2d_hidden128-20181209-173255.pth", "data_path": "data/simulated/hawkes_synthetic_exp_2d_20181207-220402.pkl"}
