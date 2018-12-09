@@ -157,8 +157,8 @@ class HawkesDecayRNN(nn.Module):
         Returns:
 
         """
-        import pdb
-        pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         n_batch = seq_times.size(0)
         n_times = len(batch_sizes)
         dt_seq: Tensor = seq_times[:, 1:] - seq_times[:, :-1]  # shape batch * N

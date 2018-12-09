@@ -195,7 +195,7 @@ class HawkesLSTM(nn.Module):
         # Get the intensity process
         intens_at_evs: Tensor = [
             self.intensity_layer(hiddens_ti[i])
-            for i in range(1, n_times)  # do not count the 0-th or End-of-sequence events
+            for i in range(n_times)  # do not count the 0-th or End-of-sequence events
         ]  # intensities just before the events occur
         # shape batch * N * input_dim
         intens_at_evs = nn.utils.rnn.pad_sequence(
@@ -203,7 +203,8 @@ class HawkesLSTM(nn.Module):
         log_intensities: Tensor = intens_at_evs.log()  # log intensities
         # get the intensities of the types which are relevant to each event
         # multiplying by the one-hot seq_types tensor sets the non-relevant intensities to 0
-        log_sum = (log_intensities * seq_onehot_types[:, 1:-1]).sum(dim=(2, 1))  # shape batch
+        seq_mask = seq_onehot_types[:, 1:]
+        log_sum = (log_intensities * seq_mask).sum(dim=(2, 1))  # shape batch
 
         # COMPUTE INTEGRAL TERM
         # Computed using Monte Carlo method
