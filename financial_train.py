@@ -3,17 +3,22 @@ import datetime
 import torch
 from torch import nn, optim
 import numpy as np
-from models import HawkesDecayRNN
-from train_functions import train_decayrnn, plot_loss
+from models import HawkesDecayRNN, HawkesLSTM
+from train_functions import train_decayrnn, train_lstm, plot_loss
 from utils.save_model import save_model
 import pandas as pd
 from argparse import ArgumentParser
 
 DEFAULT_LR = 1e-3
+DEFAULT_BATCH = 32
 
 parser = ArgumentParser(description="Train the model on financial data.")
 parser.add_argument('--data', type=str, required=True, nargs='+',
                     help='Location to find the financial data file.')
+parser.add_argument('-b', '--batch', type=int,
+                    help='Batch size. (default {})'.format(DEFAULT_BATCH))
+parser.add_argument('-m', '--model', required=True, choices={'rnn', 'lstm'},
+                    help="Model to train.")
 parser.add_argument('-e', '--epochs', type=int, required=True,
                     help='Number of epochs.')
 parser.add_argument('--lr', type=float,
@@ -26,6 +31,7 @@ args = parser.parse_args()
 data_files = args.data  # data path
 data_files.sort()
 
+# Data processing
 frames_ = []
 for file in data_files:
     df_ = pd.read_csv(file)
@@ -35,10 +41,14 @@ for file in data_files:
 
 df = pd.concat(frames_, ignore_index=True)
 
+df['MidPrice'] = 0.5*(df.AskPriceAfter + df.BidPriceAfter)
+df['MidPriceVar'] = df.MidPrice.diff()
+df_filtered = df[df.MidPriceVar != 0]
+df_filtered['MidPriceChangeType'] = (df.MidPriceVar > 0).astype(int)
 
 # Arrange our data
-evt_times = df.Time.values
-evt_types = (df.Side.values + 1) // 2  # 0 is ask, 1 is bid
+evt_times = df_filtered.Time.values
+evt_types = df_filtered.MidPriceChangeType.values
 
 print("Sequence length:", len(evt_times))
 num_of_splits = int(input("Number of splits: "))
@@ -62,8 +72,14 @@ if args.cuda:
 process_dim = 2
 hidden_size = 128
 
-model = HawkesDecayRNN(process_dim, hidden_size)
+if args.model == 'rnn':
+    model = HawkesDecayRNN(process_dim, hidden_size)
+elif args.model == 'lstm':
+    model = HawkesLSTM(process_dim, hidden_size)
+else:
+    exit()
 MODEL_NAME = model.__class__.__name__
+print('Training model {}'.format(MODEL_NAME))
 if args.cuda:
     model = model.cuda()
 num_of_parameters = sum(e.numel() for e in model.parameters())
@@ -71,10 +87,14 @@ print("no. of model parameters:", num_of_parameters)
 
 # Train model
 EPOCHS = args.epochs
-BATCH_SIZE = 32
+BATCH_SIZE = args.batch_size
 
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-loss = train_decayrnn(model, optimizer, seq_times, seq_types, seq_lengths, -1,  # tmax actually doesn't matter
+if args.model == 'rnn':
+    loss = train_decayrnn(model, optimizer, seq_times, seq_types, seq_lengths, -1,  # tmax actually doesn't matter
+                          BATCH_SIZE, EPOCHS, use_cuda=args.cuda)
+elif args.model == 'lstm':
+    loss = train_lstm(model, optimizer, seq_times, seq_types, seq_lengths, -1,  # tmax actually doesn't matter
                       BATCH_SIZE, EPOCHS, use_cuda=args.cuda)
 
 # Model file dump
