@@ -33,7 +33,7 @@ seq_lengths = [len(e) for e in split_times_list]
 split_times_list = [torch.from_numpy(e) for e in split_times_list]
 split_types_list = [torch.from_numpy(e) for e in split_types_list]
 seq_lengths = torch.LongTensor(seq_lengths) - 1
-seq_times = nn.utils.rnn.pad_sequence(split_times_list, batch_first=True)
+seq_times = nn.utils.rnn.pad_sequence(split_times_list, batch_first=True).to(torch.float32)
 seq_types = nn.utils.rnn.pad_sequence(split_types_list, batch_first=True)
 
 # Define model
