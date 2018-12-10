@@ -24,7 +24,7 @@ print(df)
 
 # Arrange our data
 evt_times = df.Time.values
-evt_types = (df.OrderType + 1)//2  # 0 is ask, 1 is bid
+evt_types = (df.OrderType.values + 1)//2  # 0 is ask, 1 is bid
 
 num_of_splits = 1000
 split_times_list = np.array_split(evt_times, num_of_splits)
