@@ -76,6 +76,11 @@ avec $\bar{\lambda}_t = \sum_k \lambda^k_t$ l'intensité totale.
 $\rightarrow$ Entraînement sur les machines des salles info (avec GPU)
 \end{frame}
 
+
+\begin{frame}{Simulation de processus}
+Simulation d'une trajectoire $\rightarrow$ version adaptée de l'algorithme d'\citeauthor{ogata1981} (\citeyear{ogata1981}).
+\end{frame}
+
 \begin{frame}{Prédiction}
 On donne un début de séquence $(t_1,k_1)\ldots (t_{i-1}, k_{i-1})$ au réseau pour générer les paramètres pour $(t_{i-1}, t_i]$.
 \begin{itemize}
@@ -97,20 +102,26 @@ On donne un début de séquence $(t_1,k_1)\ldots (t_{i-1}, k_{i-1})$ au réseau 
 \section{Conclusion}
 
 \begin{frame}{Conclusion}
-Des modèles neuronaux peuvent fournit une bonne puissance de modélisation
+Des modèles neuronaux peuvent fournir une bonne puissance de modélisation
 \begin{itemize}
 	\item[$\rightarrow$] faire un choix d'architecture 
 	\item[\textcolor{blue}{$\rightarrow$}] différents comportements possibles
 	\item[\textcolor{blue}{$\rightarrow$}] arrive à répliquer des Hawkes\pause
 	\item[\textcolor{red}{$\rightarrow$}] implémentation délicate
 	\item[\textcolor{red}{$\rightarrow$}] beaucoup de paramètres (gérer l'\textit{overfitting})
+	\item[\textcolor{red}{$\rightarrow$}] échec sur les données réelles
 \end{itemize}
 \end{frame}
 
-\begin{frame}{}
-\cite[42]{2015arXiv150204592B} propose de remplacer la log-vraisemblance $\ell$ par une fonction de contraste (perte $L_2$ sur l'intensité) $C = \EE[\|\lambda_\Theta - \tilde{\lambda} \|^2]$.
+\begin{frame}{Pistes possibles}
 
-\citeauthor{xu2018poppy} propose une librairie de modélisation de processus ponctuels (en \texttt{PyTorch}), utilisant l'entropie $-\sum_i \log P(k_i\mid t_i,\mathcal{F}_{t_{i-1}})$. \cite{xu2018poppy,xuPatientFlow2017}
+\begin{itemize}
+	\item[\textbullet] Gérer des processus marqués
+	\item[\textbullet] \cite[42]{2015arXiv150204592B} propose de remplacer la log-vraisemblance $\ell$ par une fonction de contraste (perte $L_2$ sur l'intensité) $C = \EE[\|\lambda_\Theta - \tilde{\lambda} \|^2]$.
+	\item[\textbullet] \citeauthor{xu2018poppy} propose une librairie de modélisation de processus ponctuels (en \texttt{PyTorch}), utilisant l'entropie $-\sum_i \log P(k_i\mid t_i,\mathcal{F}_{t_{i-1}})$. \cite{xu2018poppy,xuPatientFlow2017}
+\end{itemize}
+
+
 
 \end{frame}
 
@@ -138,6 +149,12 @@ On prend un Hawkes bivarié de noyau une somme d'exponentielles:
 \begin{figure}
 	\includegraphics[width=\linewidth]{../results/intensity_HawkesLSTM_2d-sumexp_hidden128_20181210-004752.pdf}
 	\caption{Trajectoire générée par un réseau LSTM entraîné sur le Hawkes \cref{fig:hawkesSumExpIntensityPlot}.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/2D_HawkesSumExp_Data_RMSE_20181210-021820.pdf}\caption{Résultats pour la prédiction.}
 \end{figure}
 \end{frame}
 \end{document}

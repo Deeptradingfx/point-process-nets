@@ -6,15 +6,16 @@
 \subsection{Hawkes symétrique}
 
 \begin{frame}{Expériences}
-Dans le rapport $\rightarrow$ difficultés à apprendre des processus au moins multivariés $K\geq 2$.\pause
+Dans le rapport $\rightarrow$ difficultés à apprendre des processus au moins multivariés $K\geq 2$.
 
-$\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
+$\rightarrow$ Faute dans le calcul de la vraisemblance (corrigée)\pause
 
 \textbf{Expérience 1} Processus de Hawkes bivarié symétrique (noyau exponentiel) sur $[0, 3600]$
 \begin{itemize}
-	\item $\alpha = \begin{bmatrix}0.1 & 0.01 \\ 0.01 & 0.1\end{bmatrix}$
+	\item $\alpha = \begin{bmatrix}0.1 & 0.01 \\ 0.01 & 0.1\end{bmatrix}$ (matrice d'adjacence)
 	\item $\beta = 1$
 	\item $\mu_1 = \mu_2 = \num{0.1}$
+	\item $\approx 800$ événements
 \end{itemize}
 \end{frame}
 
@@ -56,10 +57,10 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \begin{frame}
 \begin{figure}
 \begin{subfigure}{\linewidth}
-	\includegraphics[width=\linewidth]{../notebooks/decayrnn_2d_prediction_graphs_hidden128_NEW.pdf}
+	\includegraphics[width=\linewidth]{../notebooks/decayrnn_2d_prediction_graphs_hidden128_symmetric_NEW.pdf}
 	\caption{Le processus de Hawkes sous-jacent est symétrique: pour le prochain événement, les types sont équiprobables.}
 \end{subfigure}
-	\caption{Loi du temps du prochain événement, et intensités $(\lambda^i_t)_{t\geq t_{i-1}}$ de chaque type.}
+	\caption{Loi du temps du prochain événement, et intensités $(\lambda^i_t)_{t\geq t_{i-1}}$ de chaque type. Modèle RNN entraîné sur les Hawkes.}
 \end{figure}
 \end{frame}
 
@@ -131,20 +132,37 @@ Variation du mid-price entre $0$ et $t$ en nombre de ticks \autocite{2015arXiv15
 \begin{equation}
 	P_t = P_0 + N_t^{(a)} - N_t^{(b)}
 \end{equation}
+\end{frame}
 
+\begin{frame}
+Jeu de données: DAX (tick size $\num{0.5}$).
 \end{frame}
 
 \begin{frame}
 \begin{figure}
 	\begin{subfigure}{0.6\linewidth}
-		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesLSTM-2d_hidden128-20181210-200505.png}
+		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesLSTM-2d_hidden128-20181210-235711.png}
 		\caption{Modèle LSTM.}
 	\end{subfigure}
 	\begin{subfigure}{0.6\linewidth}
-		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesDecayRNN-2d_hidden128-20181210-200457.png}
+		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesDecayRNN-2d_hidden128-20181210-234746.png}
 		\caption{Modèle Decay-RNN.}
 	\end{subfigure}
-	\caption{Courbes d'entraînement sur le jeu de données DAX.}
+	\caption{Courbes d'apprentissage sur le jeu de données DAX.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesDecayRNN_2d_hidden128_Financial_20181210-235709.pdf}
+	\caption{Intensité apprise par le RNN.}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesLSTM_2d_hidden128_Financial_20181210-235711.pdf}
+	\caption{Intensité apprise par le LSTM.}
 \end{figure}
 \end{frame}
 
