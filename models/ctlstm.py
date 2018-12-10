@@ -308,7 +308,7 @@ class HawkesLSTMGen(SeqGenerator):
             h0, c0, _ = model.init_hidden()
             h0.normal_(std=0.1)
             c0.normal_(std=0.1)
-            h_t = h0
+            h_t = h0 + 1
             c_t = c0
             c_target = c0.clone()
             # Compute the first hidden states from the noise, at t = 0
@@ -332,7 +332,6 @@ class HawkesLSTMGen(SeqGenerator):
             # max_lbda = 3.0
 
             while last_t <= tmax:
-                # print(max_lbda)
                 ds: torch.Tensor = torch.empty_like(s)
                 ds.exponential_(max_lbda.item())
                 s: Tensor = s + ds.item()  # Increment s

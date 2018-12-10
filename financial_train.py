@@ -39,6 +39,9 @@ split_types_list = []
 seq_lengths = []
 num_of_splits = int(input("Number of splits: "))
 
+process_dim = 2
+hidden_size = 128
+
 for file in data_files:
     df = pd.read_csv(file)
     day_stamp = df.Date.values[0]
@@ -58,7 +61,8 @@ for file in data_files:
     split_types_list += [torch.from_numpy(e) for e in stpl_]
 seq_lengths = torch.LongTensor(seq_lengths) - 1
 seq_times = nn.utils.rnn.pad_sequence(split_times_list, batch_first=True).to(torch.float32)
-seq_types = nn.utils.rnn.pad_sequence(split_types_list, batch_first=True)
+seq_types = nn.utils.rnn.pad_sequence(split_types_list, batch_first=True,
+                                      padding_value=process_dim)
 print(seq_times.shape)
 
 
@@ -68,8 +72,6 @@ if args.cuda:
     seq_types = seq_types.cuda()
 
 # Define model
-process_dim = 2
-hidden_size = 128
 
 if args.model == 'rnn':
     model = HawkesDecayRNN(process_dim, hidden_size)

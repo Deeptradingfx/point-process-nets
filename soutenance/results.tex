@@ -1,3 +1,4 @@
+% !TeX spellcheck = fr_FR
 \documentclass[../main.tex]{subfiles}
 
 \begin{document}
@@ -107,6 +108,43 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 \begin{figure}
 	\includegraphics[width=\linewidth]{../results/2D_Hawkes_Asymmetrical_Data_RMSE_20181209-221850.pdf}
 	\caption{Résultats pour la prédiction d'événements, sur les données Hawkes asymétrique.}
+\end{figure}
+\end{frame}
+
+\subsection{Application: mouvement de mid-price}
+
+\begin{frame}{Application}
+
+Le mid-price est donné par
+\begin{equation*}
+	P_t = \frac{P^\text{ask} + P^\text{bid}}{2}.
+\end{equation*}
+
+\textbf{Objectif} Modéliser les mouvements du mid-price
+
+\begin{itemize}
+	\item $N_t^{(a)}$ nombre d'augmentations
+	\item $N_t^{(b)}$ nombre de baisses
+\end{itemize}
+
+On retrouve le mid-price par \autocite{2015arXiv150204592B}
+\begin{equation}
+	P_t = P_0 + N_t^{(a)} - N_t^{(b)}
+\end{equation}
+
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\begin{subfigure}{0.6\linewidth}
+		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesLSTM-2d_hidden128-20181210-200505.png}
+		\caption{Modèle LSTM.}
+	\end{subfigure}
+	\begin{subfigure}{0.6\linewidth}
+		\includegraphics[width=\linewidth]{../logs/loss_plot_HawkesDecayRNN-2d_hidden128-20181210-200457.png}
+		\caption{Modèle Decay-RNN.}
+	\end{subfigure}
+	\caption{Courbes d'entraînement sur le jeu de données DAX.}
 \end{figure}
 \end{frame}
 
