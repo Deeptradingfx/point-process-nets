@@ -23,7 +23,9 @@ soutenance/*.pdf
 
 !biblio/*.pdf
 
+# Apple garbage files
 $.DS_Store
+*.icloud
 
 # Python
 __pycache__
