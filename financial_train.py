@@ -14,6 +14,9 @@ parser.add_argument('--data', type=str, required=True,
                     help='Location to find the financial data file.')
 parser.add_argument('--epochs', type=int, required=True,
                     help='Number of epochs.')
+parser.add_argument('--lr', type=float,
+                    default=5e-3,
+                    help="Learning rate.")
 parser.add_argument('--cuda', action='store_true',
                     help="Whether or not to use GPU acceleration.")
 
@@ -61,7 +64,7 @@ print("no. of model parameters:", num_of_paramters)
 EPOCHS = args.epochs
 BATCH_SIZE = 32
 
-optimizer = optim.Adam(model.parameters(), lr=5e-3)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 loss = train_decayrnn(model, optimizer, seq_times, seq_types, seq_lengths, -1,  # tmax actually doesn't matter
                       BATCH_SIZE, EPOCHS, use_cuda=args.cuda)
 
