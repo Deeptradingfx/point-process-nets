@@ -9,14 +9,16 @@ from utils.save_model import save_model
 import pandas as pd
 from argparse import ArgumentParser
 
+DEFAULT_LR = 1e-3
+
 parser = ArgumentParser(description="Train the model on financial data.")
 parser.add_argument('--data', type=str, required=True, nargs='+',
                     help='Location to find the financial data file.')
 parser.add_argument('-e', '--epochs', type=int, required=True,
                     help='Number of epochs.')
 parser.add_argument('--lr', type=float,
-                    default=5e-3, dest='learning_rate',
-                    help="Learning rate.")
+                    default=DEFAULT_LR, dest='learning_rate',
+                    help="Learning rate. (default {})".format(DEFAULT_LR))
 parser.add_argument('--cuda', action='store_true',
                     help="Whether or not to use GPU acceleration.")
 
