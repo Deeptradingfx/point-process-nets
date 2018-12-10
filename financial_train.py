@@ -36,6 +36,11 @@ seq_lengths = torch.LongTensor(seq_lengths) - 1
 seq_times = nn.utils.rnn.pad_sequence(split_times_list, batch_first=True).to(torch.float32)
 seq_types = nn.utils.rnn.pad_sequence(split_types_list, batch_first=True)
 
+if args.cuda:
+    seq_lengths = seq_lengths.cuda()
+    seq_times = seq_times.cuda()
+    seq_types = seq_types.cuda()
+
 # Define model
 PROCESS_DIM = 2
 HIDDEN_SIZE = 128
@@ -44,6 +49,8 @@ EPOCHS = 4
 BATCH_SIZE = 32
 
 model = HawkesDecayRNN(PROCESS_DIM, HIDDEN_SIZE)
+if args.cuda:
+    model = model.cuda()
 num_of_paramters = sum(e.numel() for e in model.parameters())
 print("no. of model parameters:", num_of_paramters)
 optimizer = optim.Adam(model.parameters(), lr=5e-3)
