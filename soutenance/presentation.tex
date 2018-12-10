@@ -31,6 +31,7 @@
 
 \usepackage{hyperref}
 \usepackage{cleveref}
+\crefname{figure}{Figure}{Figures}
 
 \newcommand{\RR}{\mathbb{R}}
 \newcommand{\NN}{\mathbb{N}}
@@ -201,8 +202,30 @@ $\rightarrow$ Erratum dans le calcul de la vraisemblance (corrigé)
 
 \section{Conclusion}
 
-\begin{frame}[t,allowframebreaks]{References}
+\begin{frame}[t,allowframebreaks]{Bibliographie}
 	\printbibliography
 \end{frame}
 
+\appendix
+
+\begin{frame}{Expérience: Hawkes somme d'exponentielles}
+On prend un Hawkes bivarié de noyau une somme d'exponentielles:
+\[
+	g_{ij}(t) = \sum_u \alpha_{ij}^u\beta_{ij}^u e^{-\beta^ut}\mathds{1}_{t > 0}
+\]
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_hawkesSumExp2D.pdf}
+	\caption{Intensité du processus Hawkes à noyau somme d'exponentielles, généré par \texttt{tick}.}\label{fig:hawkesSumExpIntensityPlot}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}
+	\includegraphics[width=\linewidth]{../results/intensity_HawkesLSTM_2d-sumexp_hidden128_20181210-004752.pdf}
+	\caption{Trajectoire générée par un réseau LSTM entraîné sur le Hawkes \cref{fig:hawkesSumExpIntensityPlot}.}
+\end{figure}
+\end{frame}
 \end{document}
