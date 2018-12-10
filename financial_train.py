@@ -10,9 +10,9 @@ import pandas as pd
 from argparse import ArgumentParser
 
 parser = ArgumentParser(description="Train the model on financial data.")
-parser.add_argument('--data', type=str, required=True,
+parser.add_argument('--data', type=str, required=True, nargs='+',
                     help='Location to find the financial data file.')
-parser.add_argument('--epochs', type=int, required=True,
+parser.add_argument('-e', '--epochs', type=int, required=True,
                     help='Number of epochs.')
 parser.add_argument('--lr', type=float,
                     default=5e-3, dest='learning_rate',
@@ -21,20 +21,27 @@ parser.add_argument('--cuda', action='store_true',
                     help="Whether or not to use GPU acceleration.")
 
 args = parser.parse_args()
-chosen_file = args.data  # data path
+data_files = args.data  # data path
+data_files.sort()
 
-df = pd.read_csv(chosen_file)
-df = df[df.OrderType != 0]  # remove cancel orders
-day_stamp = df.Date.values[0]
-print("Day:", day_stamp)
+frames_ = []
+for file in data_files:
+    df_ = pd.read_csv(file)
+    day_stamp = df_.Date.values[0]
+    print("Day", day_stamp)
+    frames_.append(df_)
 
-print(df)
+df = pd.concat(frames_, ignore_index=True)
+
 
 # Arrange our data
 evt_times = df.Time.values
-evt_types = (df.OrderType.values + 1) // 2  # 0 is ask, 1 is bid
+evt_types = (df.Side.values + 1) // 2  # 0 is ask, 1 is bid
 
-num_of_splits = 1000
+print("Sequence length:", len(evt_times))
+num_of_splits = int(input("Number of splits: "))
+print("Split sequence lengths:", len(evt_times)/num_of_splits)
+
 split_times_list = np.array_split(evt_times, num_of_splits)
 split_types_list = np.array_split(evt_types, num_of_splits)
 seq_lengths = [len(e) for e in split_times_list]
@@ -57,8 +64,8 @@ model = HawkesDecayRNN(process_dim, hidden_size)
 MODEL_NAME = model.__class__.__name__
 if args.cuda:
     model = model.cuda()
-num_of_paramters = sum(e.numel() for e in model.parameters())
-print("no. of model parameters:", num_of_paramters)
+num_of_parameters = sum(e.numel() for e in model.parameters())
+print("no. of model parameters:", num_of_parameters)
 
 # Train model
 EPOCHS = args.epochs
@@ -80,10 +87,11 @@ filename_base = "{}-{}_hidden{}-{}".format(
     MODEL_NAME, extra_tag,
     hidden_size, now_timestamp)
 
-save_model(model, chosen_file, extra_tag,
+save_model(model, data_files, extra_tag,
            hidden_size, now_timestamp, MODEL_NAME)
 
 # Plot loss and save
-filename_loss_plot = "loss_plot_" + filename_base + ".png"
+filename_loss_plot = "logs/loss_plot_" + filename_base + ".png"
 fig = plot_loss(EPOCHS, loss)
 fig.savefig(filename_loss_plot)
+

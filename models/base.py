@@ -81,10 +81,9 @@ class SeqGenerator:
 
 
 def predict_from_hidden(model, h_t, decay, next_dt, next_type, plot, hmax: float = 40.,
-                        print_info: bool = False):
+                        n_samples=1000, print_info: bool = False):
     process_dim = model.process_dim
     model.eval()
-    n_samples = 1000
     timestep = hmax / n_samples
     dt_vals = torch.linspace(0, hmax, n_samples + 1)
     h_t_vals = h_t * torch.exp(-decay * dt_vals[:, None])

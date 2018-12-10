@@ -232,7 +232,21 @@ class HawkesLSTM(nn.Module):
         return res
 
     def read_predict(self, sequence, seq_types, seq_lengths, hmax: float = 40,
-                     plot: bool = False, print_info: bool = False):
+                     n_samples=1000, plot: bool = False, print_info: bool = False):
+        """
+        Read an event sequence and predict the next event time and type.
+
+        Args:
+            sequence:
+            seq_types:
+            seq_lengths:
+            hmax:
+            plot:
+            print_info:
+
+        Returns:
+
+        """
         process_dim = self.process_dim
         length = seq_lengths.item()
         with torch.no_grad():
@@ -255,7 +269,8 @@ class HawkesLSTM(nn.Module):
                       .format(last_t.item(), last_type.item()))
                 print("next event: time {:.3f} type {:.3f}, in {:.3f}"
                       .format(next_t.item(), next_type.item(), next_dt.item()))
-            return predict_from_hidden(self, h_t, decay, next_dt, next_type, plot, hmax, print_info)
+            return predict_from_hidden(self, h_t, decay, next_dt, next_type,
+                                       plot, hmax, n_samples, print_info)
 
 
 class HawkesLSTMGen(SeqGenerator):
