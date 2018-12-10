@@ -12,6 +12,8 @@ from argparse import ArgumentParser
 parser = ArgumentParser(description="Train the model on financial data.")
 parser.add_argument('--data', type=str, required=True,
                     help='Location to find the financial data file.')
+parser.add_argument('--epochs', type=int, required=True,
+                    help='Number of epochs.')
 parser.add_argument('--cuda', action='store_true',
                     help="Whether or not to use GPU acceleration.")
 
@@ -56,7 +58,7 @@ num_of_paramters = sum(e.numel() for e in model.parameters())
 print("no. of model parameters:", num_of_paramters)
 
 # Train model
-EPOCHS = 4
+EPOCHS = args.epochs
 BATCH_SIZE = 32
 
 optimizer = optim.Adam(model.parameters(), lr=5e-3)
