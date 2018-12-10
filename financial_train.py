@@ -59,7 +59,7 @@ for file in data_files:
     seq_lengths += [len(e) for e in sttl_]
     split_times_list += [torch.from_numpy(e) for e in sttl_]
     split_types_list += [torch.from_numpy(e) for e in stpl_]
-seq_lengths = torch.LongTensor(seq_lengths) - 1
+seq_lengths = torch.LongTensor(seq_lengths) - 2
 seq_times = nn.utils.rnn.pad_sequence(split_times_list, batch_first=True).to(torch.float32)
 seq_types = nn.utils.rnn.pad_sequence(split_types_list, batch_first=True,
                                       padding_value=process_dim)
