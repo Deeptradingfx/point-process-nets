@@ -15,7 +15,7 @@ parser.add_argument('--data', type=str, required=True,
 parser.add_argument('--epochs', type=int, required=True,
                     help='Number of epochs.')
 parser.add_argument('--lr', type=float,
-                    default=5e-3,
+                    default=5e-3, dest='learning_rate',
                     help="Learning rate.")
 parser.add_argument('--cuda', action='store_true',
                     help="Whether or not to use GPU acceleration.")
