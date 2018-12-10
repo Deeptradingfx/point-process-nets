@@ -15,7 +15,7 @@ DEFAULT_BATCH = 32
 parser = ArgumentParser(description="Train the model on financial data.")
 parser.add_argument('--data', type=str, required=True, nargs='+',
                     help='Location to find the financial data file.')
-parser.add_argument('-b', '--batch', type=int,
+parser.add_argument('-b', '--batch', type=int, dest='batch_size', default=DEFAULT_BATCH,
                     help='Batch size. (default {})'.format(DEFAULT_BATCH))
 parser.add_argument('-m', '--model', required=True, choices={'rnn', 'lstm'},
                     help="Model to train.")
