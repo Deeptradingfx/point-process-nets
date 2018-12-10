@@ -13,3 +13,4 @@
 {"model_path": "saved_models/HawkesDecayRNN-2d_hidden128-20181210-013110.pth", "data_path": "data/simulated/hawkes_sumxp_synthetic_exp_2d_20181210-002610.pkl"}
 {"model_path": "saved_models/HawkesLSTM-2d-sumexp_hidden128-20181210-004752.pth", "data_path": "data/simulated/hawkes_sumxp_synthetic_exp_2d_20181210-002610.pkl"}
 {"model_path": "saved_models/HawkesDecayRNN-2d_hidden128-20181210-020901.pth", "data_path": "/users/eleves-b/2016/wilson.jallet/xFDAX_20140102.csv"}
+{"model_path": "saved_models/HawkesDecayRNN-2d_hidden128-20181210-171704.pth", "data_path": ["/Data/DAX/xFDAX_20130702.csv"]}
