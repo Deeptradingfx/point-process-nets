@@ -5,7 +5,7 @@
 \section{Modèles}
 
 \begin{frame}{Modélisation: Processus ponctuels}
-Des événements $(t_i, k_i)$ de différents types $k_i\in\llbracket 1, K\rrbracket$ arrivant  aux $t_i$.\pause
+Des événements $(t_i, k_i)$ de différents types $k_i\in\llbracket 1, K\rrbracket$ arrivant aux $t_i$. Historique $\mathcal{F}_t = \{(t_i, k_i)\mid t_i \leq t\}$.\pause
 
 Le modèle de \textbf{processus ponctuel}:
 \begin{itemize}
@@ -80,7 +80,7 @@ Une version plus simple avec moins de paramètres du modèle \eqref{eq:meiEisner
 h(t) = h_i e^{-\delta_i (t - t_{i-1})}
 \quad t\in (t_{i-1}, t_i]
 \end{equation}
-où $h_i = h(t_i^{+})$ est calculé en appliquant un réseau RNN d'\citeauthor{elman1990srnn} \cite{elman1990srnn} à l'entrée $(x_i, h(t_i))$.
+où $h_i = h(t_i^{+})$ est calculé en appliquant un réseau RNN d'\citeauthor{elman1990srnn} à l'entrée $(x_i, h(t_i))$.
 
 \end{frame}
 

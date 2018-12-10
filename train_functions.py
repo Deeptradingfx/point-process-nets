@@ -154,9 +154,8 @@ def train_decayrnn(model: HawkesDecayRNN, optimizer: Optimizer, seq_times: Tenso
             hiddens, decays, hiddens_ti = model(packed_dt, packed_types, h0)
             batch_onehot = one_hot_embedding(batch_seq_types, model.input_size)
             batch_onehot = batch_onehot[:, :, :model.process_dim]
-            loss: Tensor = model.compute_loss(batch_seq_times, batch_onehot,
-                                              packed_dt.batch_sizes, hiddens, hiddens_ti,
-                                              decays, tmax)
+            loss: Tensor = model.compute_loss(batch_seq_times, batch_onehot, packed_dt.batch_sizes, hiddens, hiddens_ti,
+                                              decays)
             loss.backward()
             optimizer.step()
             epoch_loss.append(loss.item())

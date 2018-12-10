@@ -130,7 +130,7 @@ class HawkesDecayRNN(nn.Module):
         return lbda_t
 
     def compute_loss(self, seq_times: Tensor, seq_onehot_types: Tensor, batch_sizes: Tensor, hiddens: List[Tensor],
-                     hiddens_ti: List[Tensor], decays: List[Tensor], tmax: float) -> Tensor:
+                     hiddens_ti: List[Tensor], decays: List[Tensor]) -> Tensor:
         """
         Negative log-likelihood
 
@@ -152,7 +152,6 @@ class HawkesDecayRNN(nn.Module):
                 Shape: batch * (N + 1) * hidden_size
             decays:
                 Shape: batch * (N + 1)
-            tmax: time interval bound.
 
         Returns:
 
